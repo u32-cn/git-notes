@@ -183,26 +183,8 @@ $('#btn-check-update').onclick = function () {
       showUpdateBtn(j.latest);
       out.textContent = '';
       out.appendChild(document.createTextNode('发现新版本 v' + j.latest + '（当前 v' + j.current + '）→ '));
-      if (state.platform === 'android') {
-        /* 安卓：应用内下载 APK 并拉起系统安装器（系统强制最后一步人工点「安装」） */
-        var b = document.createElement('button');
-        b.type = 'button';
-        b.textContent = '下载并安装';
-        b.setAttribute('data-u32-name', 'btn-install-update');
-        b.onclick = function () {
-          b.disabled = true;
-          b.textContent = '正在下载……';
-          api('POST', '/update/install').then(function () {
-            b.textContent = '已拉起安装器，请在系统弹窗中点「安装」';
-          }).catch(function (e) {
-            b.textContent = '下载并安装';
-            b.disabled = false;
-            status('安装失败：' + e.message, 'err');
-          });
-        };
-        out.appendChild(b);
-      } else if (location.protocol === 'gnapp:') {
-        /* Electron：与顶栏 ⬇ 按钮同一条链路（startUpdate），进度就地写在本行，不再给 <a> 直链 */
+      if (state.platform === 'android' || location.protocol === 'gnapp:') {
+        /* 应用内更新统一走 startUpdate（与顶栏 ⬆ 同一条链路，进度就地写在本行，不给 <a> 直链） */
         var b = document.createElement('button');
         b.type = 'button';
         b.textContent = '下载并安装';
@@ -231,10 +213,11 @@ $('#btn-check-update').onclick = function () {
     out.textContent = '检测失败：' + e.message;
   }).finally(function () { btn.disabled = false; });
 };
-/* 一键更新统一流程（顶栏 ⬆ 按钮与设置页「下载并安装」共用，2026-10-28）：
-   electron：POST /update/install 发起后台下载（main 进程），轮询 /update/progress 汇报百分比；
+/* 一键更新统一流程（顶栏 ⬆ 按钮与设置页「下载并安装」共用，electron/android 同链路，2026-10-29）：
+   POST /update/install 发起后台下载即返回，轮询 /update/progress 汇报百分比；
    下载中重复点击不发新请求，只报当前进度（updBusy 守卫 + updLastText 最近文案）。
-   android：POST 同步下载 APK 并拉系统安装器；web 版随仓库更新不走此流程。
+   ready 语义：electron 弹确认框待点「立即安装」；android 已自动拉起系统安装器（系统强制人工点「安装」）。
+   web 版随仓库更新不走此流程。
    启动静默检测 1h 节流（localStorage gnUpdateCheckAt），失败/无新版都保持按钮隐藏 */
 /* 更新按钮即状态胶囊（一眼可见，不靠 toast/hover）：
    new=「⬆ 新版 v0.6.0」、dl=「⬇ 42%（12/89 MB）」实时、ready=「✔ 新版已就绪·点击安装」脉冲、err=失败可点重试、hide=还原隐藏 */
@@ -264,7 +247,8 @@ function updWatchPoll() {
   }).catch(function () { if (updWatchOn) setTimeout(updWatchPoll, 1600); });
 }
 function updWatchRestore() {
-  if (location.protocol !== 'gnapp:' || updWatchOn) return;
+  if (updWatchOn) return;
+  if (location.protocol !== 'gnapp:' && state.platform !== 'android') return;
   api('GET', '/update/progress').then(function (j) {
     if (j.phase === 'downloading') { updWatchOn = true; updBtnState('dl', updProgressText(j)); updWatchPoll(); }
     else if (j.phase === 'ready') updBtnState('ready', j.latest);
@@ -290,47 +274,34 @@ function startUpdate(h) {
   updLastText = '';
   function done(t) { updBusy = false; if (h.onDone) h.onDone(t); }
   function fail(m) { updBusy = false; if (h.onFail) h.onFail(m); }
-  if (location.protocol === 'gnapp:') {
-    toast('开始下载更新……');
-    api('POST', '/update/install').catch(function (e) { fail(e.message); });
-    /* POST 发起后 main 进程异步走 检测→下载；progress 未就绪（idle 无 error）时继续轮询 */
-    var poll = function () {
-      if (!updBusy) return;
-      api('GET', '/update/progress').then(function (j) {
-        if (j.phase === 'downloading') {
-          updLastText = updProgressText(j);
-          updBtnState('dl', updLastText);
-          if (h.onProgress) h.onProgress(updLastText);
-        } else if (j.phase === 'ready') {
-          updBtnState('ready', j.latest);
-          done('新版本 v' + j.latest + ' 已下载，请在弹窗中确认安装');
-          return;
-        } else if (j.phase === 'none') {
-          updBtnState('hide');
-          done('当前已是最新版本');
-          return;
-        } else if (j.error) {
-          updBtnState('err', j.error);
-          fail(j.error);
-          return;
-        }
-        setTimeout(poll, 800);
-      }).catch(function () { setTimeout(poll, 800); });
-    };
-    setTimeout(poll, 400);
-  } else {
-    /* android：POST 同步完成下载并拉起系统安装器 */
-    toast('正在下载更新……');
-    api('POST', '/update/install').then(function () {
-      updBtnState('hide');
-      done('已拉起安装器，请在系统弹窗中点「安装」');
-      toast('已拉起安装器，请在系统弹窗中点「安装」');
-    }).catch(function (e) {
-      updBtnState('err', e.message);
-      fail(e.message);
-      toast('更新失败：' + e.message, 'err');
-    });
-  }
+  var android = state.platform === 'android';
+  toast('开始下载更新……');
+  api('POST', '/update/install').catch(function (e) { fail(e.message); });
+  /* POST 发起后端后台走 检测→下载；progress 未就绪（idle 无 error）时继续轮询 */
+  var poll = function () {
+    if (!updBusy) return;
+    api('GET', '/update/progress').then(function (j) {
+      if (j.phase === 'downloading') {
+        updLastText = updProgressText(j);
+        updBtnState('dl', updLastText);
+        if (h.onProgress) h.onProgress(updLastText);
+      } else if (j.phase === 'ready') {
+        updBtnState('ready', j.latest);
+        done(android ? '已拉起安装器，请在系统弹窗中点「安装」' : '新版本 v' + j.latest + ' 已下载，请在弹窗中确认安装');
+        return;
+      } else if (j.phase === 'none') {
+        updBtnState('hide');
+        done('当前已是最新版本');
+        return;
+      } else if (j.error) {
+        updBtnState('err', j.error);
+        fail(j.error);
+        return;
+      }
+      setTimeout(poll, 800);
+    }).catch(function () { setTimeout(poll, 800); });
+  };
+  setTimeout(poll, 400);
 }
 $('#btn-update').onclick = function () {
   startUpdate({

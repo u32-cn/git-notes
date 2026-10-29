@@ -291,8 +291,11 @@ class LocalServer(private val context: Context) {
 
             path == "/api/update/check" && req.method == "GET" -> checkUpdate()
 
-            // 应用内一键更新：从更新源下载 APK 到 cacheDir/update/，拉起系统安装器（最后一步系统强制用户点「安装」）
+            // 应用内一键更新：POST 立即返回、后台下载 APK 后拉起系统安装器（最后一步系统强制用户点「安装」）
             path == "/api/update/install" && req.method == "POST" -> installUpdate()
+
+            // 更新进度轮询（与 electron 端 /api/update/progress 同构，phase ∈ idle|checking|downloading|ready|none）
+            path == "/api/update/progress" && req.method == "GET" -> updateProgress()
 
             // 移动端服务进程无法代表用户拉起文件管理器，返回明确语义（前端按 platform=android 已隐藏按钮）
             path == "/api/repo/open" && req.method == "POST" ->
@@ -542,44 +545,102 @@ class LocalServer(private val context: Context) {
         return false
     }
 
-    // 应用内一键更新：下载 APK → ApkProvider 内容 URI → ACTION_INSTALL_PACKAGE。
+    // 应用内一键更新：POST /api/update/install 立即返回、后台线程 检测→下载 APK → ApkProvider 内容 URI →
+    // ACTION_INSTALL_PACKAGE（系统强制最后一步人工点「安装」）。进度状态供前端轮询 GET /api/update/progress，
+    // phase 语义与 electron 端 autoUpdate 对齐：idle|checking|downloading|ready|none，error 随 idle 附带。
     // 首次使用若未授予「安装未知应用」权限，系统会先引导到授权页，回来重试即可。
+    private val updLock = Any()
+    private val updState = JSONObject().put("phase", "idle").put("percent", 0).put("received", 0L)
+        .put("total", 0L).put("latest", "").put("error", "").put("active", false)
+    private var updBusy = false
+
+    private fun updSet(patch: JSONObject.() -> Unit) {
+        synchronized(updLock) { updState.patch() }
+    }
+
+    private fun updateProgress(): JSONObject = synchronized(updLock) { JSONObject(updState.toString()) }
+
     private fun installUpdate(): JSONObject {
-        val cur = checkUpdate()
-        if (!cur.optBoolean("updateAvailable")) throw LocalApiError(409, "当前已是最新版本")
-        val url = cur.optString("url")
-        if (url.isEmpty()) throw LocalApiError(500, "更新源缺少下载地址")
-        val ver = cur.optString("latest")
-        val dir = File(context.cacheDir, "update").apply { mkdirs() }
-        val apk = File(dir, "git-notes-v$ver.apk")
-        val conn = URL(url).openConnection() as HttpURLConnection
-        conn.connectTimeout = 10000
-        conn.readTimeout = 60000
+        synchronized(updLock) {
+            if (updBusy) return JSONObject().put("ok", true).put("already", true)
+            updBusy = true
+        }
+        updSet {
+            put("phase", "checking").put("percent", 0).put("received", 0L).put("total", 0L)
+                .put("latest", "").put("error", "").put("active", true)
+        }
+        Thread { runUpdateFlow() }.start()
+        return JSONObject().put("ok", true).put("started", true)
+    }
+
+    private fun runUpdateFlow() {
         try {
-            if (conn.responseCode !in 200..299) throw LocalApiError(502, "下载失败：HTTP " + conn.responseCode)
-            // 先写临时名再原子改名：中途断流不留半截 APK 冒充完整包
-            val tmp = File(dir, "git-notes-v$ver.apk.part")
-            conn.inputStream.use { input -> tmp.outputStream().use { input.copyTo(it) } }
-            if (tmp.length() < 1024 * 1024) throw LocalApiError(502, "下载不完整")
-            // 更新源带 sha512 时强校验，不符拒绝安装（比依赖系统安装期签名校验更早暴露包损坏/被替换）
-            val wantSha = cur.optString("sha512")
-            if (wantSha.isNotEmpty()) {
-                val digest = MessageDigest.getInstance("SHA-512").digest(tmp.readBytes())
-                    .joinToString("") { "%02x".format(it) }
-                if (!digest.equals(wantSha, ignoreCase = true)) throw LocalApiError(502, "APK 校验失败（sha512 不符），已拒绝安装")
+            val cur = checkUpdate()
+            if (!cur.optBoolean("updateAvailable")) {
+                updSet { put("phase", "none").put("latest", cur.optString("latest")) }
+                return
             }
-            if (apk.exists()) apk.delete()
-            if (!tmp.renameTo(apk)) throw LocalApiError(500, "APK 落盘失败")
+            val url = cur.optString("url")
+            if (url.isEmpty()) throw LocalApiError(500, "更新源缺少下载地址")
+            val ver = cur.optString("latest")
+            val dir = File(context.cacheDir, "update").apply { mkdirs() }
+            val apk = File(dir, "git-notes-v$ver.apk")
+            updSet { put("phase", "downloading").put("latest", ver) }
+            if (!apk.exists()) {
+                // 先写临时名再原子改名：中途断流不留半截 APK 冒充完整包
+                val tmp = File(dir, "git-notes-v$ver.apk.part")
+                val conn = URL(url).openConnection() as HttpURLConnection
+                conn.connectTimeout = 10000
+                conn.readTimeout = 60000
+                try {
+                    if (conn.responseCode !in 200..299) throw LocalApiError(502, "下载失败：HTTP " + conn.responseCode)
+                    val total = conn.contentLengthLong
+                    var received = 0L
+                    conn.inputStream.use { input ->
+                        tmp.outputStream().use { out ->
+                            val buf = ByteArray(64 * 1024)
+                            while (true) {
+                                val n = input.read(buf)
+                                if (n < 0) break
+                                out.write(buf, 0, n)
+                                received += n
+                                updSet {
+                                    put("received", received).put("total", total)
+                                        .put("percent", if (total > 0) (received * 100 / total).toInt().coerceAtMost(100) else 0)
+                                }
+                            }
+                        }
+                    }
+                    if (tmp.length() < 1024 * 1024) throw LocalApiError(502, "下载不完整")
+                    // 更新源带 sha512 时强校验，不符拒绝安装（比依赖系统安装期签名校验更早暴露包损坏/被替换）
+                    val wantSha = cur.optString("sha512")
+                    if (wantSha.isNotEmpty()) {
+                        val digest = MessageDigest.getInstance("SHA-512").digest(tmp.readBytes())
+                            .joinToString("") { "%02x".format(it) }
+                        if (!digest.equals(wantSha, ignoreCase = true)) throw LocalApiError(502, "APK 校验失败（sha512 不符），已拒绝安装")
+                    }
+                    if (apk.exists()) apk.delete()
+                    if (!tmp.renameTo(apk)) throw LocalApiError(500, "APK 落盘失败")
+                } catch (e: Exception) {
+                    tmp.delete()
+                    throw e
+                } finally {
+                    conn.disconnect()
+                }
+            }
+            val uri = Uri.parse("content://com.vtxf.gitnotes.apk/update/" + apk.name)
+            val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            Handler(Looper.getMainLooper()).post { context.startActivity(intent) }
+            updSet { put("phase", "ready").put("percent", 100) }
+        } catch (e: Exception) {
+            updSet { put("phase", "idle").put("error", e.message ?: e.toString()) }
         } finally {
-            conn.disconnect()
+            synchronized(updLock) { updBusy = false }
+            updSet { put("active", false) }
         }
-        val uri = Uri.parse("content://com.vtxf.gitnotes.apk/update/" + apk.name)
-        val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        Handler(Looper.getMainLooper()).post { context.startActivity(intent) }
-        return JSONObject().put("ok", true).put("version", ver)
     }
 
     private fun checkUpdate(): JSONObject {
