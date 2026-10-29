@@ -1,0 +1,10 @@
+.gradle/
+build/
+local.properties
+dist/
+node_modules/
+*.log
+.zcode/
+web/gui-regression/*.png
+web/gui-regression/device/
+electron/smoke-shots/

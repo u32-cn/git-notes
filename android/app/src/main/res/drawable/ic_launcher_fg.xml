@@ -1,0 +1,46 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 品牌图标：G + 笔记本（与 web/assets/icon.svg 同源，200x200 坐标系）。
+         66dp 安全区居中：scale = 66/200 = 0.33，translate = (108-66)/2 = 21；线宽 16 同步缩放 -->
+    <group
+        android:scaleX="0.33"
+        android:scaleY="0.33"
+        android:translateX="21"
+        android:translateY="21">
+        <path
+            android:pathData="M80,40 L120,40 Q140,40 140,60 L140,90"
+            android:strokeColor="#FF4F2E"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="16" />
+        <path
+            android:pathData="M140,120 L140,140 Q140,160 120,160 L80,160 Q60,160 60,140 L60,60 Q60,40 80,40"
+            android:strokeColor="#FF4F2E"
+            android:strokeLineCap="round"
+            android:strokeLineJoin="round"
+            android:strokeWidth="16" />
+        <path
+            android:pathData="M140,120 L90,120"
+            android:strokeColor="#FF4F2E"
+            android:strokeLineCap="round"
+            android:strokeWidth="16" />
+        <path
+            android:pathData="M42,65 L60,65"
+            android:strokeColor="#FF4F2E"
+            android:strokeLineCap="round"
+            android:strokeWidth="16" />
+        <path
+            android:pathData="M42,100 L60,100"
+            android:strokeColor="#FF4F2E"
+            android:strokeLineCap="round"
+            android:strokeWidth="16" />
+        <path
+            android:pathData="M42,135 L60,135"
+            android:strokeColor="#FF4F2E"
+            android:strokeLineCap="round"
+            android:strokeWidth="16" />
+    </group>
+</vector>

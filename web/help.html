@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Git笔记 · 帮助</title>
+<link rel="stylesheet" href="/assets/app.css">
+<!-- 主题/字号跟随主界面（同源 localStorage），须先于渲染执行防闪白 -->
+<script src="/js/help-page.js"></script>
+</head>
+<body class="help-page">
+<!-- 图文帮助文档独立页（内容整理自 docs/help.md；img loading=lazy 首屏外的图滚动到才加载） -->
+<div class="help-wrap" data-u32-name="help-wrap">
+  <div class="help-head" data-u32-name="help-head">
+    <h3 data-u32-name="help-title">Git笔记 · 帮助</h3>
+  </div>
+  <div class="help-body" data-u32-name="help-body">
+    <img class="help-img" src="/assets/help-syc.png" loading="lazy" alt="数据的掌控权必须留在本地">
+    <blockquote class="help-quote" data-u32-name="help-quote">“AI 时代，数据的掌控权必须留在本地，不被任何一家 SaaS 供应商绑定。”</blockquote>
+
+    <h4 data-u32-name="help-h-what">Git笔记是什么</h4>
+    <p>一款<strong>本地优先</strong>的微笔记应用：像发朋友圈一样随手记，数据却完全由你自己掌控——笔记以普通 Markdown 文件存在你电脑上，用 git 管理，可绑定任意远端 git 仓库进行多端同步。</p>
+    <ul>
+      <li><strong>仅本机模式</strong>：一个 <code>git init</code> 就开始用，零配置零依赖（只需 git），数据只在本机。</li>
+      <li><strong>绑定远端模式</strong>：连接任意 git 服务器（SSH / HTTPS / 本地路径均可），自动同步，多设备共用一份笔记。</li>
+    </ul>
+    <p>支持 Windows（桌面版）与 Android（安卓 APK）；Web 版当前仅用于测试，macOS / Linux 暂不支持。</p>
+    <p class="help-key" data-u32-name="help-key">核心特点：数据留在本地，通过远端 git 库同步，不被任何一家 SaaS 供应商绑定。笔记就是你电脑里的一个文件夹（<code>~/.git-notes/repo</code>），随时可以打开、复制、备份，即使卸载软件也不丢。</p>
+
+    <h4 data-u32-name="help-h-feats">三大特色</h4>
+    <div class="help-feat" data-u32-name="help-feat1">
+      <img class="help-img" src="/assets/help-store-free.png" loading="lazy" alt="存储自由，随时搬家">
+      <strong>① 存储自由，随时搬家</strong>
+      <p>远端仓库可以自建，也可以放到 GitHub、Gitee、阿里云云效等 git 服务商（基础功能都免费）。今天放 Gitee，明天想换 GitHub？改一下仓库地址就行，笔记一条不丢。</p>
+    </div>
+    <div class="help-feat" data-u32-name="help-feat2">
+      <img class="help-img" src="/assets/help-ai-friendly.png" loading="lazy" alt="数据在本地，AI 更友好">
+      <strong>② 数据在本地，AI 更友好</strong>
+      <p>数据放在本地，AI 可以直接读取你的全部笔记——内置 AI 助手能帮你搜索、写笔记、批量整理、追溯历史，因为你的数据就在它手边。</p>
+    </div>
+    <div class="help-feat" data-u32-name="help-feat3">
+      <img class="help-img" src="/assets/help-git-history.png" loading="lazy" alt="天然保留所有历史，随时追溯">
+      <strong>③ 天然保留所有历史，随时追溯</strong>
+      <p>用 git 管理，每一次修改、删除都有记录。写错了一段话？误删了一篇笔记？随时可以翻回去找回任何时间点的任何版本。</p>
+    </div>
+
+    <h4 data-u32-name="help-h-func">功能详解</h4>
+    <ul>
+      <li>📝 <strong>发布与编辑</strong>：Ctrl+Enter 快捷发布；每帖最多 9 张配图（可粘贴截图）+ 9 个附件（单个 ≤10MB）；长文超 10 行自动折叠；正文字号 10–50px 滑动条调节；浅色 / 深色 / 跟随系统双主题。</li>
+      <li>🏷 <strong>标签与整理</strong>：每帖多标签，点标签 chip 一键筛选；重要笔记可钉住（最多 9 篇），钉住清单随同步走。</li>
+      <li>🔍 <strong>全库搜索</strong>：毫秒级搜索全部笔记，多关键词 AND 组合、命中高亮；支持拼音与首字母（<code>biji</code> / <code>bj</code> 都能命中「笔记」）。</li>
+      <li>🔄 <strong>多端同步</strong>：每次写操作自动「拉取 → 写入 → 提交 → 推送」；优先 rebase、不行再 merge，解决不了进入「冲突待处理」由你决定；绑定时若有分叉先展示合并预览。</li>
+      <li>🤖 <strong>AI 助手</strong>：配置自己的大模型 API Key（存于仓库设置、多端共享）；搜索/筛选/批量整理/查 git 历史/找回旧版本等 20+ 种工具；三级权限（只读 / 每次确认 / 自动），批量删除 &gt;5 篇强制确认；写操作带 [ai] 审计标记入 git 历史。</li>
+      <li>🔐 <strong>安全</strong>：服务只监听本机 127.0.0.1；SSH 专用密钥（自动生成 ed25519，不复用 ~/.ssh），支持导入导出换机。</li>
+    </ul>
+    <pre data-u32-name="help-pre">~/.git-notes/repo/
+├── micro/2026/10/20261028-120000.md   ← 每帖一个 Markdown 文件
+└── settings/main.json                 ← 标签、钉住、AI 配置等统一设置</pre>
+    <p>任何编辑器、任何 git 工具都能直接读写，永远不会被格式锁死。</p>
+
+    <h4 data-u32-name="help-h-start">快速上手：绑定远端三步走</h4>
+    <img class="help-img" src="/assets/onboarding-flow.jpg" loading="lazy" alt="绑定向导：公钥送过去，仓库地址带回来">
+    <ul>
+      <li><strong>① 送公钥</strong>：设置页点「查看公钥」，把公钥粘贴到 git 服务商（Gitee/GitHub 等）的 SSH 设置里。</li>
+      <li><strong>② 建仓库</strong>：在 git 服务商新建一个<strong>私有空仓库</strong>，复制它的 <strong>SSH 地址</strong>（形如 <code>git@gitee.com:you/notes.git</code>，⚠️ 不是 https 地址）。</li>
+      <li><strong>③ 粘贴连接</strong>：把 SSH 地址贴进绑定向导，点连接。之后每台设备都做同样操作，笔记自动同步。</li>
+    </ul>
+    <p>仅本机使用则什么都不用配；日常使用零操作：打开即最新，发布自动同步。</p>
+
+    <h4 data-u32-name="help-h-faq">常见问题</h4>
+    <dl class="help-faq" data-u32-name="help-faq">
+      <dt>换电脑了，笔记怎么迁移？</dt><dd>新设备安装后绑定同一个远端仓库，自动拉取全部笔记与历史——整个过程就是一次 git 克隆。</dd>
+      <dt>远端服务商可以换吗？</dt><dd>可以。换个仓库地址重新绑定即可，数据是标准 git 仓库，原样带走。</dd>
+      <dt>不用远端会丢数据吗？</dt><dd>不会。仅本机模式下数据就在你电脑里，配合 git 历史依然可追溯和恢复。</dd>
+      <dt>误删了笔记怎么办？</dt><dd>每步操作都是 git 提交，历史里都在。可用 AI 助手查历史并恢复旧版本，会者也可直接用 git 命令找回。</dd>
+      <dt>AI 功能需要联网吗？</dt><dd>AI 对话需联网调用大模型（需自行配置 API Key），但笔记数据始终留在本地，由本机代理按需读取。</dd>
+      <dt>多设备同时改会冲突吗？</dt><dd>正常先后使用几乎不会冲突（自动 rebase）；真冲突会明确提示，由你选择本地为准强制推送，不会静默丢数据。</dd>
+    </dl>
+  </div>
+</div>
+</body>
+</html>

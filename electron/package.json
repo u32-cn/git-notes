@@ -1,0 +1,43 @@
+{
+  "name": "git-notes",
+  "productName": "GitNotes",
+  "version": "0.6.2",
+  "description": "Git笔记 Electron 桌面版：零端口单机架构（gnapp:// 协议，后端为 Node 直写原生后端，语义对齐 web/server.js）",
+  "main": "main.js",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "start": "node scripts/copy-web.js && electron .",
+    "dist": "node scripts/copy-web.js && electron-builder --win nsis --x64"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "local.git-notes.electron",
+    "productName": "GitNotes",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "backend/**",
+      "build/**"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "icons/icon.ico"
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": false
+    },
+    "publish": {
+      "provider": "generic",
+      "url": "https://u32.cn/bd/apps/git-notes/update/win/"
+    },
+    "artifactName": "git-notes-${version}-setup.${ext}"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "updatedAt": "20261028 120000",
+  "providers": [
+    {
+      "id": "zhipu-free",
+      "label": "智谱免费（glm-4.7-flash，免费但不稳定，开放平台 key）",
+      "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "glm-4.7-flash",
+      "keyLink": "https://bigmodel.cn/apikey/platform",
+      "extra": { "thinking": { "type": "disabled" } }
+    },
+    {
+      "id": "zhipu-fast",
+      "label": "智谱快速（glm-5.3-flash，开放平台 key）",
+      "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "glm-5.3-flash",
+      "keyLink": "https://bigmodel.cn/apikey/platform",
+      "extra": { "thinking": { "type": "disabled" } }
+    },
+    {
+      "id": "zhipu-coding",
+      "label": "智谱编程套餐快速（glm-5.3-flash，Coding 套餐 key）",
+      "baseURL": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "model": "glm-5.3-flash",
+      "keyLink": "https://bigmodel.cn/apikey/platform",
+      "extra": { "thinking": { "type": "disabled" } }
+    },
+    {
+      "id": "deepseek",
+      "label": "深度求索（deepseek-flash，极速）",
+      "baseURL": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "keyLink": "https://platform.deepseek.com/api_keys",
+      "extra": { "thinking": { "type": "disabled" } }
+    },
+    {
+      "id": "custom",
+      "label": "自定义大模型（手动填写）",
+      "baseURL": "",
+      "model": "",
+      "keyLink": ""
+    }
+  ]
+}

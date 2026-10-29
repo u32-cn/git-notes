@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Git笔记</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect width='200' height='200' rx='45' fill='%23ffffff'/%3E%3Cpath d='M 80 40 L 120 40 Q 140 40 140 60 L 140 90 M 140 120 L 140 140 Q 140 160 120 160 L 80 160 Q 60 160 60 140 L 60 60 Q 60 40 80 40 M 140 120 L 90 120 M 42 65 L 60 65 M 42 100 L 60 100 M 42 135 L 60 135' fill='none' stroke='%23FF4F2E' stroke-width='16' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<div class="glow" data-u32-name="bg-glow"></div>
+<div id="app" data-u32-name="app-root">
+  <header id="app-header" data-u32-name="app-header">
+    <div class="brand" id="brand-home" data-u32-name="brand" title="信息流">
+      <svg class="logo" viewBox="0 0 200 200" aria-hidden="true"><rect width="200" height="200" rx="45" fill="#ffffff"/><g fill="none" stroke="#FF4F2E" stroke-width="16" stroke-linecap="round" stroke-linejoin="round"><path d="M 80 40 L 120 40 Q 140 40 140 60 L 140 90"/><path d="M 140 120 L 140 140 Q 140 160 120 160 L 80 160 Q 60 160 60 140 L 60 60 Q 60 40 80 40"/><path d="M 140 120 L 90 120"/><path d="M 42 65 L 60 65"/><path d="M 42 100 L 60 100"/><path d="M 42 135 L 60 135"/></g></svg>
+      <span class="brand-name">Git笔记</span>
+    </div>
+    <button id="sync-pill" class="sync-pill" data-u32-name="sync-pill" title="同步状态（点击打开设置）" aria-label="同步状态，点击打开设置" hidden>
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="6" y1="3" x2="6" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></svg>
+      <span id="sync-pill-text" data-u32-name="sync-pill-text"></span>
+      <span class="dot" data-u32-name="sync-pill-dot"></span>
+    </button>
+    <span class="header-gap" data-u32-name="header-gap"></span>
+    <button id="btn-open-repo" class="icon-btn" data-u32-name="btn-open-repo" title="打开本地仓库文件夹" aria-label="打开本地仓库文件夹" hidden><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg></button>
+    <button id="btn-refresh" class="icon-btn" data-u32-name="btn-refresh" title="同步并刷新信息流" aria-label="刷新"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></button>
+    <!-- 一键更新：仅检测到新版本时现身（title 即悬停提示），点击走 /api/update/install -->
+    <button id="btn-update" class="icon-btn upd-pill" data-u32-name="btn-update" title="有新版本，点击更新" aria-label="有新版本，点击更新" hidden><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg><span class="ai-dot upd-dot" id="upd-dot" data-u32-name="upd-dot"></span><span class="upd-text" id="upd-text" data-u32-name="upd-text" hidden></span></button>
+    <!-- 页面路由：信息流 / AI 助手 / 设置（≥1024px 时信息流与 AI 恒双栏并排） -->
+    <button id="btn-nav-feed" class="icon-btn nav-btn on" data-u32-name="nav-feed" title="信息流" aria-label="信息流"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 6h13"/><path d="M8 12h13"/><path d="M8 18h13"/><path d="M3 6h.01"/><path d="M3 12h.01"/><path d="M3 18h.01"/></svg></button>
+    <button id="btn-nav-ai" class="icon-btn nav-btn" data-u32-name="nav-ai" title="AI 助手（可筛选信息流、问答与整理笔记）" aria-label="AI 助手"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3Z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg><span class="ai-dot" id="ai-dot" data-u32-name="ai-dot" hidden></span></button>
+    <button id="btn-nav-set" class="icon-btn nav-btn" data-u32-name="nav-set" title="设置" aria-label="设置"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg></button>
+    <!-- 帮助：图文帮助文档独立页 help.html，点击新窗口打开（内容取自 docs/help.md） -->
+    <button id="btn-help" class="icon-btn" data-u32-name="btn-help" title="帮助" aria-label="帮助"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg></button>
+  </header>
+
+  <div id="shell" class="shell" data-u32-name="shell">
+    <!-- ============ 视图1：信息流（倒排：旧帖在上、新帖贴底）+ 底部 dock ============ -->
+    <section id="view-feed" class="view on" data-u32-name="view-feed">
+      <div id="feed-scroll" class="feed" data-u32-name="feed-scroll">
+        <div class="feed-wrap">
+          <div id="feed-sentinel" data-u32-name="feed-sentinel"></div>
+          <div id="feed" data-u32-name="feed"></div>
+        </div>
+      </div>
+      <div class="dock" data-u32-name="dock">
+        <div id="filter-row" class="chips filters" data-u32-name="filter-row"></div>
+        <div id="search-meta" class="search-meta" hidden data-u32-name="search-meta"></div>
+        <div class="searchbar" data-u32-name="searchbar">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+          <input id="search" type="search" data-u32-name="search-box" title="全库搜索（按 / 快速聚焦；支持拼音/首字母）" placeholder="搜索全部微笔记（全库，含未加载月份）…">
+          <button id="btn-funnel" class="funnel" type="button" data-u32-name="btn-funnel" title="标签筛选" aria-label="标签筛选"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M7 12h10"/><path d="M10 18h4"/></svg></button>
+        </div>
+        <div id="composer" class="composer" data-u32-name="composer">
+          <button type="button" id="compose-mini" class="compose-mini" data-u32-name="compose-mini" aria-label="展开发布器">
+            <span class="mm-ic" data-u32-name="compose-mini-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></span>
+            <span class="mm-ph" data-u32-name="compose-mini-ph">记录这一刻…</span>
+            <span class="mm-tools" data-u32-name="compose-mini-tools">📷 📎</span>
+          </button>
+          <textarea id="cap-input" rows="2" data-u32-name="cap-input" placeholder="记录这一刻…（Ctrl+Enter 发布）"></textarea>
+          <div id="cap-imgs" class="strip" hidden data-u32-name="cap-imgs"></div>
+          <span id="cap-count" class="img-count" data-u32-name="cap-count" hidden></span>
+          <div id="cap-files" class="strip" hidden data-u32-name="cap-files"></div>
+          <span id="cap-file-count" class="img-count" data-u32-name="cap-file-count" hidden></span>
+          <div id="cap-tags" class="chips" data-u32-name="cap-tags"></div>
+          <div class="comp-actions" data-u32-name="comp-actions">
+            <button id="btn-cap-img" data-u32-name="btn-cap-img" title="添加图片；也可直接粘贴或拖拽进输入区">📷 图片</button>
+            <button id="btn-cap-file" data-u32-name="btn-cap-file" title="添加附件（任意文件，单个 ≤10MB，最多 9 个）">📎 附件</button>
+            <button id="btn-publish" class="primary" data-u32-name="btn-publish">发 布</button>
+          </div>
+          <input id="cap-img-file" type="file" accept="image/*" multiple hidden data-u32-name="cap-img-file">
+          <input id="cap-file-file" type="file" multiple hidden data-u32-name="cap-file-file">
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ 视图2：AI 助手（窄屏整页；宽屏 ≥1024px 恒为右栏） ============ -->
+    <section id="view-ai" class="view" data-u32-name="view-ai">
+      <div class="ai-head" data-u32-name="ai-head">
+        <span class="ai-title" data-u32-name="ai-title">AI 助手</span>
+        <span class="ai-head-gap" data-u32-name="ai-head-gap"></span>
+        <button id="btn-ai-sessions" class="icon-btn" data-u32-name="ai-sessions-btn" title="历史会话" aria-label="历史会话"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></button>
+        <button id="btn-ai-new" class="icon-btn" data-u32-name="ai-new-btn" title="新对话" aria-label="新对话"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"/><path d="M5 12h14"/></svg></button>
+      </div>
+      <div id="ai-mode-pills" class="ai-mode" data-u32-name="ai-mode-pills" title="AI 权限模式">
+        <button type="button" data-ai-mode="confirm" data-u32-name="ai-mode-confirm">确认模式</button>
+        <button type="button" data-ai-mode="ro" data-u32-name="ai-mode-ro">只读</button>
+        <button type="button" data-ai-mode="auto" data-u32-name="ai-mode-auto">自动</button>
+      </div>
+      <div id="ai-sessions" data-u32-name="ai-sessions-panel" hidden></div>
+      <div id="ai-msgs" data-u32-name="ai-msgs"></div>
+      <div id="ai-unconfig" data-u32-name="ai-unconfig" hidden>
+        <p class="ai-unconfig-t" data-u32-name="ai-unconfig-t">还未配置 AI 服务</p>
+        <p class="ai-unconfig-d" data-u32-name="ai-unconfig-d">到设置里填入 OpenAI 兼容的 API 地址、Key 与模型名（需支持 function calling）即可开始。对话内容会发送给你配置的 AI 服务。</p>
+        <button id="btn-ai-goconfig" class="primary" data-u32-name="ai-goconfig" type="button">去配置</button>
+      </div>
+      <div class="ai-compose" data-u32-name="ai-compose">
+        <textarea id="ai-input" rows="2" data-u32-name="ai-input" placeholder="问问你的笔记…（Enter 发送，Shift+Enter 换行）"></textarea>
+        <button id="btn-ai-stop" type="button" data-u32-name="ai-stop" hidden>停止</button>
+        <button id="btn-ai-send" class="primary" type="button" data-u32-name="ai-send">发送</button>
+      </div>
+    </section>
+
+    <!-- ============ 视图3：设置（独立页面，非浮层） ============ -->
+    <section id="view-set" class="view" data-u32-name="view-set">
+      <div class="set-scroll" data-u32-name="set-scroll">
+        <div class="set-wrap" data-u32-name="set-wrap">
+          <div class="settings-sec" data-u32-name="settings-appearance">
+            <div class="settings-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z"/><path d="M12 3v18"/></svg>外观</div>
+            <div id="theme-opts" class="theme-opts" data-u32-name="theme-opts">
+              <button type="button" data-theme-opt="light" data-u32-name="theme-light">☀ 浅色</button>
+              <button type="button" data-theme-opt="dark" data-u32-name="theme-dark">🌙 深色</button>
+              <button type="button" data-theme-opt="auto" data-u32-name="theme-auto">🖥 跟随系统</button>
+            </div>
+            <div id="font-opts" class="font-slider-row" data-u32-name="font-opts" title="帖子正文字号">
+              <input type="range" id="font-slider" min="10" max="50" step="1" data-u32-name="font-slider" />
+              <span id="font-val" class="font-val" data-u32-name="font-val"></span>
+            </div>
+            <p class="hint" data-u32-name="font-hint">字号作用于帖子正文与发布/编辑输入框（10–50px，默认 14，仅本机生效）。</p>
+          </div>
+          <div class="settings-sec" data-u32-name="settings-sync">
+            <div class="settings-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>同步</div>
+            <div id="sync-remote" class="sync-remote" data-u32-name="sync-remote" hidden></div>
+            <p class="hint" id="sync-info" data-u32-name="sync-info"></p>
+            <div id="sync-error" class="dlg-error" data-u32-name="sync-error" hidden></div>
+            <div class="dlg-actions" data-u32-name="sync-actions" style="justify-content:flex-start;">
+              <button id="btn-bind-remote" data-u32-name="btn-bind-remote" hidden>绑定远端</button>
+              <button id="btn-unbind" data-u32-name="btn-unbind" hidden>解绑远端</button>
+              <button id="btn-force-push" class="danger" data-u32-name="btn-force-push" hidden>强制推送（本地为准）</button>
+              <button id="btn-sync" class="primary" data-u32-name="btn-sync" hidden>立即同步</button>
+            </div>
+            <p class="hint" id="ai-hint" data-u32-name="ai-hint" hidden>存在冲突：可选择「强制推送」以本地为准覆盖远端；AI 分析处理将在后续版本提供。</p>
+          </div>
+          <div class="settings-sec" data-u32-name="settings-keys">
+            <div class="settings-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>SSH 密钥</div>
+            <p class="hint" id="key-status" data-u32-name="key-status"></p>
+            <p class="hint" data-u32-name="keys-hint">私钥永不出本机；把公钥添加到 git 服务器「个人设置 → SSH 公钥」后即可同步。</p>
+            <div class="dlg-actions" data-u32-name="keys-actions" style="justify-content:flex-start;">
+              <button id="btn-show-pubkey" data-u32-name="btn-show-pubkey" hidden>查看公钥</button>
+              <button id="btn-import-key" data-u32-name="btn-import-key" hidden>导入私钥</button>
+              <button id="btn-rotate-key" data-u32-name="btn-rotate-key" hidden>重新生成密钥</button>
+              <button id="btn-export-key" data-u32-name="btn-export-key" hidden>导出私钥</button>
+            </div>
+          </div>
+          <div class="settings-sec" data-u32-name="settings-tags">
+            <div class="settings-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2.426 2.426 0 0 0 3.42 0l6.58-6.58a2.426 2.426 0 0 0 0-3.42z"/><circle cx="7.5" cy="7.5" r=".5" fill="currentColor"/></svg>自定义标签</div>
+            <p class="hint" data-u32-name="tags-hint">标签清单存于仓库 settings/tags.json，所有设备同步；移除标签不影响已发微笔记上已有的标签。</p>
+            <div id="settings-tags" class="chips" data-u32-name="settings-tags-list"></div>
+            <div class="tag-add-row" data-u32-name="tag-add-row">
+              <input id="new-tag-input" data-u32-name="new-tag-input" placeholder="新标签（≤16 字）">
+              <button id="btn-add-tag" class="primary" data-u32-name="btn-add-tag">添加</button>
+            </div>
+          </div>
+          <div class="settings-sec" data-u32-name="settings-ai">
+            <div class="settings-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3Z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>AI 助手</div>
+            <select id="ai-provider" data-u32-name="ai-provider">
+              <option value="">— 快捷选择提供商 —</option>
+            </select>
+            <input id="ai-base" data-u32-name="ai-base" placeholder="API 地址，如 https://open.bigmodel.cn/api/coding/paas/v4（OpenAI 兼容）">
+            <div class="tag-add-row" data-u32-name="ai-key-row">
+              <input id="ai-key" type="password" data-u32-name="ai-key" placeholder="API Key" autocomplete="off">
+              <a id="ai-key-link" data-u32-name="ai-key-link" target="_blank" rel="noopener" aria-disabled="true">获取 API Key →</a>
+            </div>
+            <input id="ai-model" data-u32-name="ai-model" placeholder="模型名（需支持 function calling，如 glm-4.6）">
+            <textarea id="ai-extra" rows="8" data-u32-name="ai-extra" placeholder='附加请求参数（JSON，可选），合并进每次请求体。如智谱思考：{"thinking":{"type":"enabled"}}；OpenAI 深度思考：{"reasoning_effort":"high"}'></textarea>
+            <div class="tag-add-row" data-u32-name="ai-test-row">
+              <button id="btn-ai-test" data-u32-name="ai-test" type="button">测试连接</button>
+            </div>
+            <p class="hint" data-u32-name="ai-privacy-hint">配置（含 Key）保存到笔记仓库 settings/ai.json，随 git 同步到远端与各设备——请确保远端仓库可信。对话内容与命中的笔记片段会发送给你配置的 AI 服务；AI 修改笔记以 git 提交落地（[ai] 标记），历史可找回。请求经本机服务转发（无需关心跨域）。</p>
+            <p class="hint" id="ai-test-result" data-u32-name="ai-test-result" hidden></p>
+            <div class="dlg-actions" data-u32-name="ai-actions" style="justify-content:flex-start;">
+              <button id="btn-ai-save" class="primary" data-u32-name="ai-save" type="button">保存 AI 设置</button>
+            </div>
+          </div>
+          <div class="settings-sec" data-u32-name="settings-repo-info">
+            <div class="settings-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>本地仓库</div>
+            <p class="hint" data-u32-name="about-repo">数据存于本机 git 仓库 ~/.git-notes/repo；绑定远端后自动同步（rebase → merge，冲突时可强制推送），删除以 git 提交落地可找回。</p>
+            <div class="dlg-actions" data-u32-name="about-actions" style="justify-content:flex-start;">
+              <button id="btn-open-repo-page" type="button" data-u32-name="btn-open-repo-page">打开仓库文件夹</button>
+            </div>
+          </div>
+          <div class="settings-sec" data-u32-name="settings-about-app">
+            <div class="settings-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l1.9 5.8a2 2 0 0 0 1.3 1.3L21 12l-5.8 1.9a2 2 0 0 0-1.3 1.3L12 21l-1.9-5.8a2 2 0 0 0-1.3-1.3L3 12l5.8-1.9a2 2 0 0 0 1.3-1.3Z"/><path d="M19 3v4"/><path d="M21 5h-4"/></svg>关于</div>
+            <p class="hint" id="about-version" data-u32-name="about-version"></p>
+            <div class="dlg-actions" data-u32-name="update-actions" style="justify-content:flex-start;">
+              <button id="btn-check-update" type="button" data-u32-name="btn-check-update">检测新版本</button>
+            </div>
+            <p class="hint" id="update-result" data-u32-name="update-result" hidden></p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 回到最新（倒排信息流：新帖贴底；上滑离开底部较远时浮现） -->
+    <button id="btn-bottom" data-u32-name="btn-bottom" title="回到最新" aria-label="回到最新" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+  </div>
+
+  <footer id="status-bar" data-u32-name="status-bar"></footer>
+</div>
+
+<div id="lightbox" hidden data-u32-name="lightbox">
+  <img id="lb-img" alt="" data-u32-name="lb-img">
+  <button id="lb-close" class="lb-btn" data-u32-name="lb-close" title="关闭 (Esc)">✕</button>
+  <a id="lb-dl" class="lb-btn" data-u32-name="lb-dl" title="下载图片" aria-label="下载图片" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/><path d="M12 15V3"/></svg></a>
+  <button id="lb-prev" class="lb-btn" data-u32-name="lb-prev" title="上一张 (←)">‹</button>
+  <button id="lb-next" class="lb-btn" data-u32-name="lb-next" title="下一张 (→)">›</button>
+  <div id="lb-counter" data-u32-name="lb-counter"></div>
+</div>
+
+<!-- 灯箱右键菜单：复制图片 / 保存图片（contextmenu 唤出，点任意处关闭） -->
+<div id="lb-menu" hidden data-u32-name="lb-menu">
+  <button type="button" id="lb-copy" data-u32-name="lb-copy">复制图片</button>
+  <button type="button" id="lb-save" data-u32-name="lb-save">保存图片</button>
+</div>
+
+<div id="toast" data-u32-name="toast" hidden></div>
+
+<!-- 首次引导：欢迎双岔路（仅本机 / 多端同步三步向导） -->
+<div id="setup" class="overlay" data-u32-name="setup" hidden>
+  <div class="panel" data-u32-name="setup-panel">
+    <div id="setup-choice" data-u32-name="setup-choice">
+      <h3 data-u32-name="setup-title">欢迎使用 Git笔记</h3>
+      <div class="setup-opts" data-u32-name="setup-opts">
+        <button id="btn-local-mode" class="setup-card" data-u32-name="btn-local-mode" type="button">
+          <svg class="setup-card-ic" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round"><rect x="9" y="9" width="30" height="20" rx="2.5"/><path d="M5 36h38M24 29v3"/><path d="M16 15h16M16 20h10" opacity=".45"/></g></svg>
+          <span class="setup-card-t">仅在本机使用</span>
+          <span class="setup-card-d">立即开始，无需任何配置。</span>
+          <span class="setup-card-w">⚠ 笔记仅保存在本机：无法多端同步，丢失无法找回。</span>
+        </button>
+        <button id="btn-clone-mode" class="setup-card" data-u32-name="btn-clone-mode" type="button">
+          <svg class="setup-card-ic" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="15" width="13" height="21" rx="2.5"/><rect x="30" y="10" width="13" height="26" rx="2.5"/><path d="M20 22h8m-2.5-3 2.5 3-2.5 3M28 22l-2.5 3"/></g></svg>
+          <span class="setup-card-t">多端同步</span>
+          <span class="setup-card-d">绑定你自己的 Git 仓库，备份 + 多设备同步。Gitee / GitHub / 自建，约 2 分钟设置。</span>
+        </button>
+      </div>
+    </div>
+    <div id="setup-clone" data-u32-name="setup-clone" hidden>
+      <h3 data-u32-name="setup-bind-title">绑定 Git 仓库 · 多设备同步</h3>
+      <img class="setup-flow" src="/assets/onboarding-flow.jpg" alt="原理示意图：公钥送过去（网站认设备），仓库地址带回来，从此自动同步" data-u32-name="setup-flow">
+      <div class="setup-step">
+        <div class="settings-label" data-u32-name="setup-step1-label">① 复制公钥</div>
+        <p class="hint" data-u32-name="setup-step1-hint">这是这台设备的「身份钥匙」，贴到 Git 网站上，网站才信任这台设备。</p>
+        <div id="pubkey-sec" data-u32-name="pubkey-sec" hidden>
+          <textarea id="pubkey-box" readonly data-u32-name="pubkey-box" spellcheck="false"></textarea>
+          <div class="dlg-actions" data-u32-name="copy-row" style="justify-content:flex-start;">
+            <button id="btn-copy-pubkey" data-u32-name="btn-copy-pubkey" type="button">📋 复制公钥</button>
+          </div>
+        </div>
+      </div>
+      <div class="setup-step">
+        <div class="settings-label" data-u32-name="setup-step2-label">② 去 Git 网站设置：添加公钥 + 新建仓库</div>
+        <p class="hint" data-u32-name="setup-step2-hint">任选一个你有账号的网站，点链接直达：</p>
+        <div class="setup-sites" data-u32-name="setup-sites-gitee">
+          <span class="setup-site-name">Gitee</span>
+          <a href="https://gitee.com/profile/sshkeys" target="_blank" rel="noopener">添加公钥 ↗</a>
+          <a href="https://gitee.com/projects/new" target="_blank" rel="noopener">新建仓库 ↗</a>
+        </div>
+        <div class="setup-sites" data-u32-name="setup-sites-github">
+          <span class="setup-site-name">GitHub</span>
+          <a href="https://github.com/settings/ssh/new" target="_blank" rel="noopener">添加公钥 ↗</a>
+          <a href="https://github.com/new" target="_blank" rel="noopener">新建仓库 ↗</a>
+        </div>
+        <div class="setup-sites" data-u32-name="setup-sites-codeup">
+          <span class="setup-site-name">阿里云 Codeup</span>
+          <a href="https://account-devops.aliyun.com/settings/ssh" target="_blank" rel="noopener">添加公钥 ↗</a>
+          <a href="https://codeup.aliyun.com/?new=show" target="_blank" rel="noopener">新建项目 ↗</a>
+        </div>
+        <p class="setup-warn" data-u32-name="setup-warn">⚠ 仓库必须设置为「私有（Private）」！否则你的笔记对全网公开可见。</p>
+        <p class="hint" id="setup-guide" data-u32-name="setup-guide">新建时保持空仓库（不要勾选「初始化 README」）；建好后进入仓库页面，把 SSH 地址复制下来，形如 git@gitee.com:you/notes.git。其他 Git 网站也一样：设置里找「SSH 公钥」，新建仓库后拷 SSH 地址。</p>
+      </div>
+      <div class="setup-step">
+        <div class="settings-label" data-u32-name="setup-step3-label">③ 粘贴仓库地址，连接</div>
+        <p class="setup-warn" data-u32-name="setup-warn-ssh">⚠ 务必粘贴 SSH 地址（形如 git@gitee.com:you/notes.git），不要粘贴 https:// 地址！</p>
+        <div class="tag-add-row" data-u32-name="setup-connect-row">
+          <input id="clone-remote" data-u32-name="clone-remote" placeholder="git@gitee.com:you/notes.git">
+          <button id="btn-do-clone" class="primary" data-u32-name="btn-do-clone" type="button">连 接</button>
+        </div>
+        <p class="hint" data-u32-name="setup-skip-hint">熟悉 Git？直接填地址即可。</p>
+      </div>
+      <div id="setup-merge" data-u32-name="setup-merge" hidden>
+        <p class="hint" id="setup-merge-info" data-u32-name="setup-merge-info"></p>
+        <div class="dlg-error" id="setup-merge-error" data-u32-name="setup-merge-error" hidden></div>
+        <div class="dlg-actions" data-u32-name="setup-merge-actions">
+          <button id="btn-setup-merge-abort" data-u32-name="btn-setup-merge-abort" type="button">取消绑定</button>
+          <button id="btn-setup-merge-force" class="danger" data-u32-name="btn-setup-merge-force" type="button" hidden>强制推送（本地为准）</button>
+          <button id="btn-setup-merge" class="primary" data-u32-name="btn-setup-merge" type="button">确认合并并绑定</button>
+        </div>
+      </div>
+      <div class="dlg-error" id="setup-error" data-u32-name="setup-error" hidden></div>
+      <p class="hint" id="clone-progress" data-u32-name="clone-progress" hidden></p>
+      <div class="dlg-actions" data-u32-name="setup-actions">
+        <button id="btn-back-choice" data-u32-name="btn-back-choice" type="button">← 返回</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 绑定远端向导已并入首次引导的「三步绑定视图」（#setup-clone）：设置页【绑定远端】打开同一面板，按状态分流克隆/探测绑定 -->
+
+<div id="dlg" class="overlay" data-u32-name="dlg" hidden>
+  <div class="panel" data-u32-name="dlg-panel">
+    <h3 id="dlg-title" data-u32-name="dlg-title"></h3>
+    <p id="dlg-text" class="hint" data-u32-name="dlg-text"></p>
+    <div id="dlg-copy-row" class="dlg-actions" data-u32-name="dlg-copy-row" style="justify-content:flex-start;" hidden>
+      <button id="btn-dlg-copy" data-u32-name="btn-dlg-copy" type="button">复制</button>
+    </div>
+    <input id="dlg-input" data-u32-name="dlg-input">
+    <textarea id="dlg-textarea" data-u32-name="dlg-textarea" rows="6" spellcheck="false" hidden></textarea>
+    <div id="dlg-error" class="dlg-error" data-u32-name="dlg-error" hidden></div>
+    <div class="dlg-actions" data-u32-name="dlg-actions">
+      <button id="dlg-cancel" data-u32-name="dlg-cancel">取消</button>
+      <button id="dlg-ok" class="primary" data-u32-name="dlg-ok">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 时间段筛选（信息流筛选行的「时间」chip 打开） -->
+<div id="trdlg" class="overlay" data-u32-name="trdlg" hidden>
+  <div class="panel" data-u32-name="trdlg-panel">
+    <h3 data-u32-name="trdlg-title">按时间段筛选</h3>
+    <div id="tr-presets" class="chips" data-u32-name="tr-presets"></div>
+    <div class="tr-inputs" data-u32-name="tr-inputs">
+      <input id="tr-from" type="date" data-u32-name="tr-from" aria-label="开始日期" title="开始日期（可只填一端）">
+      <span class="tr-sep" data-u32-name="tr-sep">~</span>
+      <input id="tr-to" type="date" data-u32-name="tr-to" aria-label="结束日期" title="结束日期（可只填一端）">
+    </div>
+    <p class="hint" data-u32-name="trdlg-hint">可只填一端：只填开始 = 该日至今；只填结束 = 最早至该日。两端都空 = 不限时间。</p>
+    <div class="dlg-actions" data-u32-name="trdlg-actions">
+      <button id="tr-clear" data-u32-name="tr-clear" type="button" hidden>清除筛选</button>
+      <button id="tr-cancel" data-u32-name="tr-cancel" type="button">取消</button>
+      <button id="tr-apply" class="primary" data-u32-name="tr-apply" type="button">应 用</button>
+    </div>
+  </div>
+</div>
+
+<!-- 脚本按依赖顺序加载（全都在全局作用域，后文件可引用前文件的函数/状态）。
+     CSP script-src 'self'（原内联哈希机制随源码拆分改为 self，web/android/electron 三端一致） -->
+<script src="/js/10-config.js"></script>
+<script src="/js/20-util.js"></script>
+<script src="/js/30-tags.js"></script>
+<script src="/js/40-feed.js"></script>
+<script src="/js/50-compose.js"></script>
+<script src="/js/60-lightbox.js"></script>
+<script src="/js/70-settings.js"></script>
+<script src="/js/80-ai.js"></script>
+<script src="/js/90-events.js"></script>
+</body>
+</html>

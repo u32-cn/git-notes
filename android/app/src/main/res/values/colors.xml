@@ -1,0 +1,6 @@
+<resources>
+    <!-- 与 web/index.html :root 浅色配色对齐 -->
+    <color name="app_bg">#f4f6f9</color>
+    <color name="app_text">#1f2733</color>
+    <color name="ic_launcher_bg">#ffffff</color>
+</resources>
