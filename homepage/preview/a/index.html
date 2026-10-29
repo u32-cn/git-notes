@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Git笔记 · 把日子留在自己手里</title>
+<meta name="description" content="Git笔记是一款本地优先的微笔记应用。像发朋友圈一样随手记，笔记是一个普通 Markdown 文件夹，用 git 管理，可绑定任意仓库多端同步。Windows 与 Android。">
+<meta name="theme-color" content="#faf6ed">
+<link rel="icon" href="../../assets/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="a.css">
+</head>
+<body>
+<div class="grain" data-u32-name="grain" aria-hidden="true"></div>
+
+<header class="nav" data-u32-name="nav">
+  <a class="brand" data-u32-name="brand" href="#top">
+    <img class="brand-logo" src="../../assets/icon.svg" alt="">
+    <span>Git笔记</span>
+  </a>
+  <nav class="nav-links" data-u32-name="nav-links" aria-label="页面导航">
+    <a href="#why" data-u32-name="nav-why">为什么</a>
+    <a href="#features" data-u32-name="nav-features">特色</a>
+    <a href="#functions" data-u32-name="nav-functions">功能</a>
+    <a href="#start" data-u32-name="nav-start">上手</a>
+    <a href="#faq" data-u32-name="nav-faq">问答</a>
+  </nav>
+  <div class="nav-right" data-u32-name="nav-right">
+    <button class="icon-btn" id="theme-btn" data-u32-name="theme-btn" type="button" aria-label="切换深浅主题">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z"/></svg>
+    </button>
+    <a class="btn btn-ink btn-sm" data-u32-name="nav-download" href="#download">下载</a>
+  </div>
+</header>
+
+<main id="top" data-u32-name="main">
+
+<section class="hero" data-u32-name="hero">
+  <p class="eyebrow reveal" data-u32-name="hero-eyebrow">本地优先的微笔记 · Markdown + Git</p>
+  <h1 class="reveal" data-u32-name="hero-title">把日子，<br><span class="hero-line">留在自己手里。</span></h1>
+  <p class="hero-sub reveal" data-u32-name="hero-sub">像发朋友圈一样随手记。笔记就是一个普通文件夹，用 git 管着。可以只放在本机，也可以绑定任意仓库，多端同步。</p>
+  <div class="hero-cta reveal" data-u32-name="hero-cta">
+    <a class="btn btn-accent" data-u32-name="hero-win" href="https://u32.cn/bd/apps/git-notes/" target="_blank" rel="noopener">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M17.8 20l-12 -1.5c-1 -.1 -1.8 -.9 -1.8 -1.9v-9.2c0 -1 .8 -1.8 1.8 -1.9l12 -1.5c1.2 -.1 2.2 .8 2.2 1.9v12.1c0 1.2 -1.1 2.1 -2.2 1.9z"/><path d="M12 5l0 14"/><path d="M4 12l16 0"/></svg>
+      下载 Windows 版
+    </a>
+    <a class="btn btn-line" data-u32-name="hero-android" href="https://u32.cn/bd/apps/git-notes/" target="_blank" rel="noopener">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 10l0 6"/><path d="M20 10l0 6"/><path d="M7 9h10v8a1 1 0 0 1 -1 1h-8a1 1 0 0 1 -1 -1v-8a5 5 0 0 1 10 0"/><path d="M8 3l1 2"/><path d="M16 3l-1 2"/><path d="M9 18l0 3"/><path d="M15 18l0 3"/></svg>
+      Android APK
+    </a>
+  </div>
+  <p class="hero-meta reveal" data-u32-name="hero-meta">免费，无账号，无订阅。Windows 桌面版与 Android，数据留在你自己的设备与仓库里。</p>
+
+  <div class="app-wrap reveal" data-u32-name="app-wrap">
+    <div class="app-frame" data-u32-name="app-frame">
+      <div class="app-titlebar" data-u32-name="app-titlebar">
+        <span class="dot" data-u32-name="dot-1"></span><span class="dot" data-u32-name="dot-2"></span><span class="dot" data-u32-name="dot-3"></span>
+        <span class="app-title" data-u32-name="app-title">Git笔记 · 本地仓库</span>
+      </div>
+      <div class="app" data-u32-name="app">
+        <div class="app-main" data-u32-name="app-main">
+          <div class="app-head" data-u32-name="app-head">
+            <span class="app-brand" data-u32-name="app-brand"><img src="../../assets/icon.svg" alt=""><b>Git笔记</b></span>
+            <span class="pill-branch" data-u32-name="app-branch">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M7 18m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M7 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M17 6m-2 0a2 2 0 1 0 4 0a2 2 0 1 0 -4 0"/><path d="M7 8l0 8"/><path d="M9 18h6a2 2 0 0 0 2 -2v-5"/><path d="M14 14l3 -3l3 3"/></svg>
+              main · 已同步
+            </span>
+            <span class="app-tools" data-u32-name="app-tools">
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 4h4l3 3h7a2 2 0 0 1 2 2v8a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-11a2 2 0 0 1 2 -2"/></svg>
+              <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg>
+              <svg class="ic is-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 4m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/><path d="M12 2v2"/><path d="M9 12v9"/><path d="M15 12v9"/><path d="M5 16l4 -2"/><path d="M15 14l4 2"/><path d="M9 18h6"/><path d="M10 8v.01"/><path d="M14 8v.01"/></svg>
+            </span>
+          </div>
+          <div class="feed" data-u32-name="feed">
+            <div class="day" data-u32-name="feed-day">今天 · 10 月 28 日</div>
+            <article class="note" data-u32-name="note-1">
+              <span class="rail" data-u32-name="note-1-rail"><i class="node" data-u32-name="note-1-node"></i><i class="node-line" data-u32-name="note-1-line"></i></span>
+              <div class="note-card" data-u32-name="note-1-card">
+                <div class="note-top" data-u32-name="note-1-top"><span>刚刚</span><span class="tags" data-u32-name="note-1-tags"># 日记</span></div>
+                <p data-u32-name="note-1-text">清晨去山里走了走，雾还没散。</p>
+                <img class="note-photo" data-u32-name="note-1-photo" src="../../assets/photos/trail.webp" alt="山间薄雾中的小路" loading="lazy">
+              </div>
+            </article>
+            <article class="note" data-u32-name="note-2">
+              <span class="rail" data-u32-name="note-2-rail"><i class="node" data-u32-name="note-2-node"></i><i class="node-line" data-u32-name="note-2-line"></i></span>
+              <div class="note-card" data-u32-name="note-2-card">
+                <div class="note-top" data-u32-name="note-2-top"><span>1 小时前</span><span class="tags" data-u32-name="note-2-tags"># 随记</span></div>
+                <p data-u32-name="note-2-text">咖啡放在窗台，忽然想把今天记下来。</p>
+                <div class="photo-row" data-u32-name="note-2-photos">
+                  <img src="../../assets/photos/coffee.webp" alt="窗台上的绿植与咖啡" loading="lazy">
+                  <img src="../../assets/photos/cat.webp" alt="趴在木桌上晒太阳的橘猫" loading="lazy">
+                </div>
+              </div>
+            </article>
+            <article class="note" data-u32-name="note-3">
+              <span class="rail" data-u32-name="note-3-rail"><i class="node" data-u32-name="note-3-node"></i></span>
+              <div class="note-card" data-u32-name="note-3-card">
+                <div class="note-top" data-u32-name="note-3-top"><span>昨天 22:40</span><span class="tags" data-u32-name="note-3-tags"># 工作</span></div>
+                <p data-u32-name="note-3-text">把方案最后一段改完，收工。</p>
+              </div>
+            </article>
+          </div>
+          <div class="composer" data-u32-name="composer">
+            <p class="composer-placeholder" data-u32-name="composer-placeholder">记录这一刻…（Ctrl+Enter 发布）</p>
+            <div class="composer-row" data-u32-name="composer-tags">
+              <span class="chip" data-u32-name="chip-todo">待办</span><span class="chip" data-u32-name="chip-diary">日记</span><span class="chip" data-u32-name="chip-idEA">想法</span><span class="chip is-ghost" data-u32-name="chip-more">+ 标签</span>
+            </div>
+            <div class="composer-row" data-u32-name="composer-actions">
+              <span class="chip is-ghost" data-u32-name="chip-photo">图片</span><span class="chip is-ghost" data-u32-name="chip-file">附件</span>
+              <span class="publish" data-u32-name="publish">发布</span>
+            </div>
+          </div>
+        </div>
+        <aside class="ai" data-u32-name="app-ai">
+          <div class="ai-head" data-u32-name="ai-head"><b>AI 助手</b><span class="mode" data-u32-name="ai-mode">确认模式</span></div>
+          <div class="bubble user" data-u32-name="ai-user">帮我找上周关于爬山的笔记</div>
+          <div class="bubble bot" data-u32-name="ai-bot">
+            <p>找到 2 条，按时间排好了。</p>
+            <div class="mini-note" data-u32-name="ai-note-1">10 月 21 日 · 山顶的风很大</div>
+            <div class="mini-note" data-u32-name="ai-note-2">10 月 19 日 · 上山的路有点滑</div>
+          </div>
+          <div class="ai-hints" data-u32-name="ai-hints"><span>帮我总结这周</span><span>找出所有待办</span></div>
+          <div class="ai-input" data-u32-name="ai-input">问问你的笔记…</div>
+        </aside>
+      </div>
+    </div>
+    <p class="app-caption" data-u32-name="app-caption">每一条笔记，都是一次 git 提交。写错了、删了，都能翻回去。</p>
+  </div>
+</section>
+
+<section class="premise" id="why" data-u32-name="premise">
+  <div class="sec-head" data-u32-name="premise-head">
+    <span class="sec-label" data-u32-name="premise-label">它是什么</span>
+    <h2 data-u32-name="premise-title">一款笔记应用，<br>数据是一座 git 仓库。</h2>
+    <p class="sec-lead" data-u32-name="premise-lead">不是把笔记锁进某个云服务的数据库，而是写成普通文件，放在你自己的文件夹里。</p>
+  </div>
+  <div class="premise-grid" data-u32-name="premise-grid">
+    <div class="premise-col" data-u32-name="premise-local">
+      <span class="premise-no" data-u32-name="premise-local-no">01</span>
+      <h3 data-u32-name="premise-local-title">一个普通文件夹</h3>
+      <p data-u32-name="premise-local-text">打开、复制、备份都行。卸载软件，文件夹还在。换一台电脑，把这个文件夹带走就行。</p>
+      <code class="path" data-u32-name="premise-path">~/.git-notes/repo</code>
+      <pre class="filetree" data-u32-name="premise-tree"><code>repo/
+├── micro/2026/10/
+│   └── 20261028-120000.md
+└── settings/main.json</code></pre>
+    </div>
+    <div class="premise-col" data-u32-name="premise-git">
+      <span class="premise-no" data-u32-name="premise-git-no">02</span>
+      <h3 data-u32-name="premise-git-title">一条标准 git 历史</h3>
+      <p data-u32-name="premise-git-text">同步走标准 git 协议，不依赖任何私有云接口。服务可以换、可以停，你的数据照常可用。</p>
+      <div class="mini-log" data-u32-name="premise-log">
+        <div class="mini-log-row" data-u32-name="premise-log-1"><i class="log-dot"></i><span class="log-msg">记下今天的山雾</span><span class="log-time">10:24</span></div>
+        <div class="mini-log-row" data-u32-name="premise-log-2"><i class="log-dot"></i><span class="log-msg">补一句咖啡的味道</span><span class="log-time">11:06</span></div>
+        <div class="mini-log-row" data-u32-name="premise-log-3"><i class="log-dot is-hot"></i><span class="log-msg">把方案最后一段改完</span><span class="log-time">22:40</span></div>
+      </div>
+      <p class="premise-foot" data-u32-name="premise-foot">支持 Windows 桌面版与 Android APK。Web 版目前仅用于测试，macOS 与 Linux 暂不支持。</p>
+    </div>
+  </div>
+</section>
+
+<section class="quote-band" data-u32-name="quote-band">
+  <div class="quote-copy" data-u32-name="quote-copy">
+    <span class="quote-mark" data-u32-name="quote-mark" aria-hidden="true">“</span>
+    <blockquote data-u32-name="quote-text">AI 时代，数据的掌控权必须留在本地，不被任何一家 SaaS 供应商绑定。</blockquote>
+    <p class="quote-note" data-u32-name="quote-note">一张流传很广的梗图，正好说中了本地优先这件事。</p>
+  </div>
+  <figure class="quote-fig" data-u32-name="quote-fig">
+    <img src="../../assets/img/syc-person.webp" alt="孙宇晨拿着麦克风发言的梗图" loading="lazy">
+  </figure>
+</section>
+
+<section class="features" id="features" data-u32-name="features">
+  <div class="sec-head" data-u32-name="features-head">
+    <span class="sec-label" data-u32-name="features-label">三大特色</span>
+    <h2 data-u32-name="features-title">三件事，<br>普通笔记应用给不了。</h2>
+  </div>
+
+  <article class="feature" data-u32-name="feature-storage">
+    <div class="feature-copy" data-u32-name="feature-storage-copy">
+      <span class="feature-no" data-u32-name="feature-storage-no">01</span>
+      <h3 data-u32-name="feature-storage-title">存储自由，随时搬家</h3>
+      <p data-u32-name="feature-storage-text">远端仓库可以自建，也可以放在 GitHub、Gitee、阿里云云效，基础功能都免费。今天放 Gitee，明天想换 GitHub，改一下仓库地址就行，笔记一条不丢。</p>
+      <p class="feature-aside" data-u32-name="feature-storage-aside">没有任何一家服务商能锁住你。</p>
+    </div>
+    <div class="feature-media" data-u32-name="feature-storage-media">
+      <div class="repo-stack" data-u32-name="repo-stack">
+        <div class="repo-card is-current" data-u32-name="repo-gitee"><span class="repo-dot"></span><b>Gitee</b><span class="repo-tag">当前</span></div>
+        <div class="repo-arrow" data-u32-name="repo-arrow" aria-hidden="true">↓</div>
+        <div class="repo-card" data-u32-name="repo-github"><span class="repo-dot"></span><b>GitHub</b></div>
+        <div class="repo-card" data-u32-name="repo-yunxiao"><span class="repo-dot"></span><b>阿里云云效</b></div>
+        <div class="repo-card" data-u32-name="repo-self"><span class="repo-dot"></span><b>自建服务器</b></div>
+      </div>
+      <p class="media-note" data-u32-name="feature-storage-note">改一下仓库地址，历史原样带走。</p>
+    </div>
+  </article>
+
+  <article class="feature flip" data-u32-name="feature-ai">
+    <div class="feature-copy" data-u32-name="feature-ai-copy">
+      <span class="feature-no" data-u32-name="feature-ai-no">02</span>
+      <h3 data-u32-name="feature-ai-title">数据在本地，AI 更友好</h3>
+      <p data-u32-name="feature-ai-text">数据锁在别人的云端，AI 想帮你检索、整理、总结都够不着。数据放在本地，内置 AI 助手能直接读取你的全部笔记：搜索、写笔记、批量整理、追溯历史。</p>
+      <p class="feature-aside" data-u32-name="feature-ai-aside">权限分只读、每次确认、自动执行三档，改了什么，git 里都查得到。</p>
+    </div>
+    <div class="feature-media" data-u32-name="feature-ai-media">
+      <div class="chat-demo" data-u32-name="chat-demo">
+        <div class="chat-row right" data-u32-name="chat-q"><span>把上个月的读书笔记按标签整理一下</span></div>
+        <div class="chat-row left" data-u32-name="chat-a">
+          <span>整理好了。共 12 篇，分成 <b># 技术</b>、<b># 生活</b>、<b># 摘录</b> 三组，已写入 git 历史。</span>
+        </div>
+        <div class="chat-row left" data-u32-name="chat-a2">
+          <span>用到的操作：搜索、读取、修改标签、写入历史，共 4 步。</span>
+        </div>
+        <div class="chat-meta" data-u32-name="chat-meta"><i></i>AI 写操作已记录审计标记</div>
+      </div>
+    </div>
+  </article>
+
+  <article class="feature" data-u32-name="feature-history">
+    <div class="feature-copy" data-u32-name="feature-history-copy">
+      <span class="feature-no" data-u32-name="feature-history-no">03</span>
+      <h3 data-u32-name="feature-history-title">天然保留所有历史，随时追溯</h3>
+      <p data-u32-name="feature-history-text">用 git 管理，每一次修改、删除都有记录。写错了一段话，误删了一篇笔记，随时翻回去找回任何时间点的版本。这是普通笔记应用做不到的。</p>
+      <p class="feature-aside" data-u32-name="feature-history-aside">不用手动备份，历史一直在长。</p>
+    </div>
+    <div class="feature-media" data-u32-name="feature-history-media">
+      <div class="version-demo" data-u32-name="version-demo">
+        <div class="ver-row" data-u32-name="ver-1"><span class="ver-time">10 月 24 日</span><span class="ver-msg">初稿：周末去爬山</span></div>
+        <div class="ver-row" data-u32-name="ver-2"><span class="ver-time">10 月 26 日</span><span class="ver-msg">补了一段山顶的风</span></div>
+        <div class="ver-row is-now" data-u32-name="ver-3"><span class="ver-time">10 月 28 日</span><span class="ver-msg">恢复 10 月 24 日的版本</span><span class="ver-badge">已恢复</span></div>
+      </div>
+      <p class="media-note" data-u32-name="feature-history-note">任何时间点的版本，都能找回来。</p>
+    </div>
+  </article>
+</section>
+
+<section class="functions" id="functions" data-u32-name="functions">
+  <div class="sec-head" data-u32-name="functions-head">
+    <span class="sec-label" data-u32-name="functions-label">功能</span>
+    <h2 data-u32-name="functions-title">写、找、整理、同步，<br>一天都用得上。</h2>
+  </div>
+  <div class="fn-grid" data-u32-name="fn-grid">
+    <article class="fn" data-u32-name="fn-publish">
+      <div class="fn-head" data-u32-name="fn-publish-head">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 20h4l10.5 -10.5a2.828 2.828 0 1 0 -4 -4l-10.5 10.5v4"/><path d="M13.5 6.5l4 4"/></svg>
+        <h3 data-u32-name="fn-publish-title">发布与编辑</h3>
+      </div>
+      <p data-u32-name="fn-publish-text">写完直接发，<kbd>Ctrl</kbd> + <kbd>Enter</kbd> 快捷发布。每帖最多 9 张图，粘贴截图即可上传；附件单个 10MB 以内、每帖 9 个以内，原始文件名保留。超过 10 行自动收起，字号 10 到 50px 可调。</p>
+    </article>
+    <article class="fn" data-u32-name="fn-tags">
+      <div class="fn-head" data-u32-name="fn-tags-head">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M3 8v4.172a2 2 0 0 0 .586 1.414l5.71 5.71a2.41 2.41 0 0 0 3.408 0l3.592 -3.592a2.41 2.41 0 0 0 0 -3.408l-5.71 -5.71a2 2 0 0 0 -1.414 -.586h-4.172a2 2 0 0 0 -2 2z"/><path d="M18 19l1.592 -1.592a4.82 4.82 0 0 0 0 -6.816l-4.592 -4.592"/><path d="M7 10h-.01"/></svg>
+        <h3 data-u32-name="fn-tags-title">标签与整理</h3>
+      </div>
+      <p data-u32-name="fn-tags-text">每帖可打多个标签，发布时点选或自定义；点标签一键筛选。重要笔记可置顶钉住，最多 9 篇，钉住清单随同步走，所有设备一致。</p>
+    </article>
+    <article class="fn" data-u32-name="fn-search">
+      <div class="fn-head" data-u32-name="fn-search-head">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0"/><path d="M21 21l-6 -6"/></svg>
+        <h3 data-u32-name="fn-search-title">全库搜索</h3>
+      </div>
+      <p data-u32-name="fn-search-text">毫秒级搜索本地仓库全部笔记，多个关键词 AND 组合，命中内容高亮。支持拼音与首字母，输入 <code>biji</code> 或 <code>bj</code> 都能命中「笔记」，内置 8105 常用字拼音表。</p>
+    </article>
+    <article class="fn" data-u32-name="fn-sync">
+      <div class="fn-head" data-u32-name="fn-sync-head">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M20 11a8.1 8.1 0 0 0 -15.5 -2m-.5 -4v4h4"/><path d="M4 13a8.1 8.1 0 0 0 15.5 2m.5 4v-4h-4"/></svg>
+        <h3 data-u32-name="fn-sync-title">多端同步</h3>
+      </div>
+      <p data-u32-name="fn-sync-text">每次写操作自动完成拉取、写入、提交、推送，推送被拒自动整合重试。优先 rebase 保持历史线性，不行再 merge；真冲突会提示「冲突待处理」，由你决定，不会静默丢数据。</p>
+    </article>
+    <article class="fn" data-u32-name="fn-ai">
+      <div class="fn-head" data-u32-name="fn-ai-head">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M6 4m0 2a2 2 0 0 1 2 -2h8a2 2 0 0 1 2 2v4a2 2 0 0 1 -2 2h-8a2 2 0 0 1 -2 -2z"/><path d="M12 2v2"/><path d="M9 12v9"/><path d="M15 12v9"/><path d="M5 16l4 -2"/><path d="M15 14l4 2"/><path d="M9 18h6"/><path d="M10 8v.01"/><path d="M14 8v.01"/></svg>
+        <h3 data-u32-name="fn-ai-title">AI 助手</h3>
+      </div>
+      <p data-u32-name="fn-ai-text">配置你自己的大模型 API Key，多端共享。AI 能搜索、筛选、阅读笔记，批量创建、修改、删除，按标签整理，查询 git 历史，共 20 多种工具操作。批量删除超过 5 篇时，无论什么模式都强制人工确认。</p>
+    </article>
+    <article class="fn" data-u32-name="fn-security">
+      <div class="fn-head" data-u32-name="fn-security-head">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3a12 12 0 0 0 8.5 3a12 12 0 0 1 -8.5 15a12 12 0 0 1 -8.5 -15a12 12 0 0 0 8.5 -3"/><path d="M12 11m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0"/><path d="M12 12l0 2.5"/></svg>
+        <h3 data-u32-name="fn-security-title">安全</h3>
+      </div>
+      <p data-u32-name="fn-security-text">服务只监听本机 127.0.0.1，不暴露局域网与公网；页面凭证使用随机 cookie 加 Host 校验。SSH 使用专用密钥，自动生成 ed25519，不复用你的 ~/.ssh，私钥权限 0600。</p>
+    </article>
+  </div>
+
+  <div class="format" data-u32-name="format">
+    <div class="format-copy" data-u32-name="format-copy">
+      <span class="sec-label" data-u32-name="format-label">数据格式</span>
+      <h3 data-u32-name="format-title">零锁定，永远是纯文本</h3>
+      <p data-u32-name="format-text">每帖一个 Markdown 文件，任何编辑器、任何 git 工具都能直接读写。就算有一天不用 Git笔记了，笔记还是你的笔记。</p>
+    </div>
+    <pre class="format-code" data-u32-name="format-code"><code>~/.git-notes/repo/
+├── micro/2026/10/20261028-120000.md
+│     ← 每帖一个 Markdown 文件
+└── settings/main.json
+      ← 标签、钉住、AI 配置</code></pre>
+  </div>
+</section>
+
+<section class="start" id="start" data-u32-name="start">
+  <div class="sec-head" data-u32-name="start-head">
+    <span class="sec-label" data-u32-name="start-label">快速上手</span>
+    <h2 data-u32-name="start-title">三步，开始记。</h2>
+    <p class="sec-lead" data-u32-name="start-lead">不需要注册账号，不需要配置服务器。先记起来，之后再决定要不要同步。</p>
+  </div>
+  <div class="steps" data-u32-name="steps">
+    <div class="step" data-u32-name="step-install">
+      <span class="step-no" data-u32-name="step-install-no">01</span>
+      <h3 data-u32-name="step-install-title">安装</h3>
+      <p data-u32-name="step-install-text">Windows 运行安装包 <code>git-notes-x.x.x-setup.exe</code>；Android 装 APK。Web 版目前仅用于测试，需要 Node.js 18 以上和 git。</p>
+    </div>
+    <div class="step" data-u32-name="step-mode">
+      <span class="step-no" data-u32-name="step-mode-no">02</span>
+      <h3 data-u32-name="step-mode-title">选个模式</h3>
+      <p data-u32-name="step-mode-text">首次启动出现引导页。想先记起来，选<strong>仅本机</strong>，一个 <code>git init</code> 就开始用；需要多设备同步，选<strong>绑定远端</strong>。</p>
+    </div>
+    <div class="step" data-u32-name="step-bind">
+      <span class="step-no" data-u32-name="step-bind-no">03</span>
+      <h3 data-u32-name="step-bind-title">绑定远端</h3>
+      <p data-u32-name="step-bind-text">设置页点「查看公钥」，粘贴到 Gitee 或 GitHub 的 SSH 设置；新建一个空仓库，复制 SSH 地址贴进绑定向导，点连接。</p>
+    </div>
+  </div>
+  <p class="start-note" data-u32-name="start-note"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 12l5 5l10 -10"/></svg>之后日常使用无需任何操作：打开即最新，发布自动同步。</p>
+</section>
+
+<section class="faq" id="faq" data-u32-name="faq">
+  <div class="sec-head" data-u32-name="faq-head">
+    <span class="sec-label" data-u32-name="faq-label">问答</span>
+    <h2 data-u32-name="faq-title">你可能还想知道。</h2>
+  </div>
+  <div class="faq-list" data-u32-name="faq-list">
+    <details data-u32-name="faq-migrate"><summary data-u32-name="faq-migrate-q">换电脑了，笔记怎么迁移？</summary><p>新设备安装 Git笔记，绑定同一个远端仓库，自动拉取全部笔记与历史。整个过程就是一次 git 克隆。</p></details>
+    <details data-u32-name="faq-switch"><summary data-u32-name="faq-switch-q">远端服务商可以换吗？</summary><p>可以。换个仓库地址重新绑定即可，数据是标准 git 仓库，原样带走。</p></details>
+    <details data-u32-name="faq-format"><summary data-u32-name="faq-format-q">笔记是什么格式？</summary><p>普通 Markdown 文件，按 <code>micro/年/月/日期-时间.md</code> 存放，任何编辑器都能打开，永远不会有格式锁死的问题。</p></details>
+    <details data-u32-name="faq-local"><summary data-u32-name="faq-local-q">不用远端会丢数据吗？</summary><p>不会。仅本机模式下数据就在你电脑里，配合 git 历史依然可以追溯和恢复。远端只是额外的备份与同步手段。</p></details>
+    <details data-u32-name="faq-delete"><summary data-u32-name="faq-delete-q">误删了笔记怎么办？</summary><p>每一步操作都是 git 提交，历史里都在。可以在 AI 助手里让它查 git 历史并恢复旧版本，熟悉 git 的也能直接用命令找回。</p></details>
+    <details data-u32-name="faq-ai-net"><summary data-u32-name="faq-ai-net-q">AI 功能需要联网吗？</summary><p>AI 对话需要联网调用大模型服务，需自行配置 API Key；但你的笔记数据始终留在本地，由本机代理按需读取。</p></details>
+    <details data-u32-name="faq-conflict"><summary data-u32-name="faq-conflict-q">多设备同时改会冲突吗？</summary><p>正常先后使用几乎不会冲突，自动 rebase 整合。真冲突时会明确提示「冲突待处理」，由你选择以本地为准强制推送，不会静默丢数据。</p></details>
+  </div>
+</section>
+
+<section class="cta" id="download" data-u32-name="cta">
+  <div class="cta-inner" data-u32-name="cta-inner">
+    <h2 data-u32-name="cta-title">把笔记握回自己手里。</h2>
+    <p class="cta-sub" data-u32-name="cta-sub">免费使用，无账号无注册。数据永远在你自己的设备与 git 仓库里。</p>
+    <div class="cta-btns" data-u32-name="cta-btns">
+      <a class="btn btn-accent" data-u32-name="cta-win" href="https://u32.cn/bd/apps/git-notes/" target="_blank" rel="noopener">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M17.8 20l-12 -1.5c-1 -.1 -1.8 -.9 -1.8 -1.9v-9.2c0 -1 .8 -1.8 1.8 -1.9l12 -1.5c1.2 -.1 2.2 .8 2.2 1.9v12.1c0 1.2 -1.1 2.1 -2.2 1.9z"/><path d="M12 5l0 14"/><path d="M4 12l16 0"/></svg>
+        下载 Windows 版
+      </a>
+      <a class="btn btn-line" data-u32-name="cta-android" href="https://u32.cn/bd/apps/git-notes/" target="_blank" rel="noopener">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M4 10l0 6"/><path d="M20 10l0 6"/><path d="M7 9h10v8a1 1 0 0 1 -1 1h-8a1 1 0 0 1 -1 -1v-8a5 5 0 0 1 10 0"/><path d="M8 3l1 2"/><path d="M16 3l-1 2"/><path d="M9 18l0 3"/><path d="M15 18l0 3"/></svg>
+        Android APK
+      </a>
+    </div>
+    <p class="cta-note" data-u32-name="cta-note">Windows 桌面版 · Android · 安装包从 u32.cn 获取</p>
+  </div>
+</section>
+
+</main>
+
+<footer class="foot" data-u32-name="footer">
+  <p class="foot-slogan" data-u32-name="foot-slogan">数据的掌控权，留在本地。</p>
+  <p class="foot-meta" data-u32-name="foot-meta">Git笔记，本地优先的微笔记。<a href="https://u32.cn/" target="_blank" rel="noopener">u32.cn</a></p>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement, btn = document.getElementById('theme-btn');
+  var mq = window.matchMedia('(prefers-color-scheme: dark)');
+  var mode = 'light';
+  try { var s = localStorage.getItem('gnPreviewTheme'); if (s === 'dark' || s === 'light') mode = s; } catch (e) {}
+  var q = new URLSearchParams(location.search).get('theme');
+  if (q === 'dark' || q === 'light') mode = q;
+  function apply() {
+    root.setAttribute('data-theme', mode);
+    btn.setAttribute('aria-label', mode === 'dark' ? '切换到浅色主题' : '切换到深色主题');
+    var meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', mode === 'dark' ? '#17140f' : '#faf6ed');
+  }
+  btn.addEventListener('click', function () {
+    mode = mode === 'dark' ? 'light' : 'dark';
+    try { localStorage.setItem('gnPreviewTheme', mode); } catch (e) {}
+    apply();
+  });
+  mq.addEventListener('change', function () { if (!localStorage.getItem('gnPreviewTheme')) apply(); });
+  apply();
+})();
+</script>
+</body>
+</html>

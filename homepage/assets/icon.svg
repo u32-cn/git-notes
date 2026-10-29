@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
+  <!-- Git笔记 品牌图标：G + 笔记本（git 橙 #FF4F2E）；favicon/electron icon.ico/安卓 ic_launcher_fg 同源 -->
+  <rect width="200" height="200" rx="45" fill="#ffffff"/>
+  <g fill="none" stroke="#FF4F2E" stroke-width="16" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 80 40 L 120 40 Q 140 40 140 60 L 140 90"/>
+    <path d="M 140 120 L 140 140 Q 140 160 120 160 L 80 160 Q 60 160 60 140 L 60 60 Q 60 40 80 40"/>
+    <path d="M 140 120 L 90 120"/>
+    <path d="M 42 65 L 60 65"/>
+    <path d="M 42 100 L 60 100"/>
+    <path d="M 42 135 L 60 135"/>
+  </g>
+</svg>

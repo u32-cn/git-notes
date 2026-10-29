@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Git笔记专题页 · 三个改造方向</title>
+<meta name="description" content="Git笔记产品专题页的三个预览方案：纸本编辑风、提交图谱暗色风、便签拼贴 Bento 风。">
+<meta name="theme-color" content="#f3f4f8">
+<link rel="icon" href="../assets/icon.svg" type="image/svg+xml">
+<style>
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: #f3f4f8; color: #232833;
+  font: 16px/1.75 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+}
+a { color: inherit; }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 64px 28px 80px; }
+.head { max-width: 900px; }
+.eyebrow { margin: 0 0 14px; color: #c73d20; font-size: 12.5px; font-weight: 700; letter-spacing: .14em; }
+h1 { margin: 0; font-size: clamp(32px, 4.4vw, 48px); line-height: 1.3; letter-spacing: -.02em; }
+.lead { margin: 16px 0 0; color: #5b6472; font-size: 16.5px; }
+.note { margin: 10px 0 0; color: #8a93a1; font-size: 13px; }
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; margin-top: 44px; }
+.card {
+  display: flex; flex-direction: column; background: #fff; border: 1px solid rgba(20, 30, 50, .09);
+  border-radius: 18px; overflow: hidden; text-decoration: none;
+  box-shadow: 0 18px 44px -30px rgba(20, 30, 50, .35);
+  transition: transform .2s, box-shadow .2s, border-color .2s;
+}
+.card:hover { transform: translateY(-4px); border-color: rgba(199, 61, 32, .3); box-shadow: 0 28px 60px -28px rgba(20, 30, 50, .4); }
+.shot { display: block; aspect-ratio: 760 / 560; overflow: hidden; background: #e9ecf2; }
+.shot img { width: 100%; height: 100%; object-fit: cover; object-position: top center; }
+.body { padding: 20px 22px 22px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.tag { align-self: flex-start; padding: 2px 8px; border-radius: 5px; background: #fdeee9; color: #c73d20; font: 700 10.5px ui-monospace, Consolas, monospace; letter-spacing: .08em; }
+h2 { margin: 0; font-size: 20px; line-height: 1.4; letter-spacing: -.01em; }
+.desc { margin: 0; color: #5b6472; font-size: 13.5px; line-height: 1.75; }
+.meta { margin: auto 0 0; padding-top: 12px; border-top: 1px solid rgba(20, 30, 50, .07); color: #8a93a1; font-size: 12px; }
+.go { display: inline-flex; align-items: center; gap: 6px; margin-top: 4px; color: #c73d20; font-size: 13px; font-weight: 700; }
+.foot { margin-top: 40px; padding-top: 20px; border-top: 1px solid rgba(20, 30, 50, .09); color: #8a93a1; font-size: 12.5px; display: flex; flex-wrap: wrap; gap: 14px; }
+.foot a { color: #c73d20; text-decoration: none; }
+.foot a:hover { text-decoration: underline; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } .shot { aspect-ratio: 16 / 10; } }
+</style>
+</head>
+<body>
+<div class="wrap" data-u32-name="wrap">
+  <header class="head" data-u32-name="head">
+    <p class="eyebrow" data-u32-name="eyebrow">Git笔记专题页 · 改造预览</p>
+    <h1 data-u32-name="title">三个方向，都从 help.md 重新讲一遍。</h1>
+    <p class="lead" data-u32-name="lead">色彩沿用产品的橙红与双主题，内容全部取自产品帮助文档。三个方案的结构、语气和视觉重心不同，点开任意一个看完整页面。</p>
+    <p class="note" data-u32-name="note">方案 C 已落为 <code>web/index.html</code>，A/B 保留作备选。手机宽度与深浅主题都已适配（方案 B 本身为深色）。</p>
+  </header>
+
+  <div class="grid" data-u32-name="grid">
+    <a class="card" data-u32-name="card-a" href="a/index.html">
+      <div class="shot" data-u32-name="shot-a"><img src="../assets/shots/a.webp" alt="方案 A 首屏预览"></div>
+      <div class="body" data-u32-name="body-a">
+        <span class="tag" data-u32-name="tag-a">方案 A</span>
+        <h2 data-u32-name="title-a">纸本 · 安静编辑风</h2>
+        <span class="desc" data-u32-name="desc-a">最接近 birdtab 的气质：暖纸底色、衬线大标题、居中排版、产品窗口作主角。适合把笔记讲成一件温柔、长期的事。</span>
+        <span class="meta" data-u32-name="meta-a">暖纸 + 衬线 · 双主题 · 引文带</span>
+        <span class="go" data-u32-name="go-a">查看完整预览 →</span>
+      </div>
+    </a>
+
+    <a class="card" data-u32-name="card-b" href="b/index.html">
+      <div class="shot" data-u32-name="shot-b"><img src="../assets/shots/b.webp" alt="方案 B 首屏预览"></div>
+      <div class="body" data-u32-name="body-b">
+        <span class="tag" data-u32-name="tag-b">方案 B</span>
+        <h2 data-u32-name="title-b">提交图谱 · 暗色技术风</h2>
+        <span class="desc" data-u32-name="desc-b">用 git log 的提交图谱串起整页，每个卖点是一条 commit。终端、哈希、diff 都在讲同一件事：你的笔记有历史。</span>
+        <span class="meta" data-u32-name="meta-b">深色 + 等宽 · 提交图谱 · 终端面板</span>
+        <span class="go" data-u32-name="go-b">查看完整预览 →</span>
+      </div>
+    </a>
+
+    <a class="card" data-u32-name="card-c" href="../index.html">
+      <div class="shot" data-u32-name="shot-c"><img src="../assets/shots/c.webp" alt="方案 C 首屏预览"></div>
+      <div class="body" data-u32-name="body-c">
+        <span class="tag" data-u32-name="tag-c">方案 C · 已采用</span>
+        <h2 data-u32-name="title-c">便签拼贴 · Bento 风</h2>
+        <span class="desc" data-u32-name="desc-c">产品浅色底上的便签拼贴与 Bento 网格，语气更轻快。已加入孙宇晨梗图摘录卡，下载地址按 latest.yml / latest.json 动态获取。</span>
+        <span class="meta" data-u32-name="meta-c">已落为正式页 · 摘录卡 · 动态下载</span>
+        <span class="go" data-u32-name="go-c">打开正式页 →</span>
+      </div>
+    </a>
+  </div>
+
+  <footer class="foot" data-u32-name="foot">
+    <span data-u32-name="foot-source">内容来源：产品仓库 docs/help.md（2026-10-28）</span>
+    <span data-u32-name="foot-back"><a href="../index.html">打开正式页</a></span>
+  </footer>
+</div>
+</body>
+</html>
