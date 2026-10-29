@@ -1,5 +1,7 @@
 # Git笔记（git-notes）
 
+开源地址：<https://github.com/u32-cn/git-notes> · 官网地址：<https://git-notes.u32.cn/>
+
 ![数据的掌控权必须留在本地](web/assets/help-syc.png)
 
 > **"AI 时代，数据的掌控权必须留在本地，不被任何一家 SaaS 供应商绑定。"**
@@ -74,6 +76,11 @@ web/server.js（Node ≥18 零 npm 依赖，spawn 系统 git）
 | Windows 桌面 | `electron/` | Electron 纯单机（零端口零鉴权），`cd electron && npm i && npm run dist` |
 
 三端共享同一套前端（`web/index.html` + `assets/` + `js/`）与数据格式，改 `web/server.js` 路由/git 行为需三端同步。
+
+## 开源地址
+
+- GitHub：<https://github.com/u32-cn/git-notes>
+- 官网：<https://git-notes.u32.cn/>
 
 ## License
 
