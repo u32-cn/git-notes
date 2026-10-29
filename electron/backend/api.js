@@ -299,4 +299,4 @@ function jsonResponse(status, obj) {
   return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
 }
 
-module.exports = { handleApi, handleAiProxy, setOpenRepo, setUpdateInstaller, setUpdateProgress, VERSION, checkUpdate };
+module.exports = { handleApi, handleAiProxy, setOpenRepo, setUpdateInstaller, setUpdateRunner, setUpdateProgress, VERSION, checkUpdate };
