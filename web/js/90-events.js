@@ -138,9 +138,27 @@ $('#btn-refresh').onclick = function () {
 $('#btn-nav-feed').onclick = function () { showView('feed'); };
 $('#btn-nav-ai').onclick = function () { showView('ai'); };
 $('#btn-nav-set').onclick = function () { showView('set'); };
-/* 帮助文档：独立 help.html 新窗口打开（web 原生新窗；electron 由主进程 setWindowOpenHandler 开子窗口、
-   android 由 MainActivity onCreateWindow 在当前 WebView 导航+返回键返回） */
-$('#btn-help').onclick = function () { window.open('/help.html', 'gnhelp', 'width=760,height=860'); };
+/* 帮助文档：应用内独立视图 #view-help（内容单源 fetch help.html 注入，不再开新窗口；
+   help.html 直开路由三端保留兼容，electron 子窗口/android onCreateWindow 作为旧缓存前端兜底） */
+$('#btn-help').onclick = function () { showView('help'); };
+var helpLoaded = false;
+function loadHelpView() {
+  if (helpLoaded) return;
+  var box = $('#help-view-body');
+  box.textContent = '正在加载帮助……';
+  fetch('/help.html').then(function (r) {
+    if (!r.ok) throw new Error(r.status);
+    return r.text();
+  }).then(function (t) {
+    var wrap = new DOMParser().parseFromString(t, 'text/html').querySelector('.help-wrap');
+    if (!wrap) throw new Error('no .help-wrap');
+    box.textContent = '';
+    box.appendChild(document.importNode(wrap, true));
+    helpLoaded = true;
+  }).catch(function () {
+    box.textContent = '帮助文档加载失败，请重试（切走再切回即可）。';
+  });
+}
 $('#brand-home').onclick = function () { showView('feed'); };
 $('#sync-pill').onclick = function () { showView('set'); };
 $('#btn-open-repo').onclick = function () {
@@ -579,7 +597,7 @@ document.addEventListener('keydown', function (ev) {
       /* 首次引导不允许 Esc 关闭（未完成配置无法使用）；设置页进来的绑定面板可关 */
       if (setupFrom === 'settings') closeSetupPanel();
     }
-    else if (curView === 'set') showView('feed');
+    else if (curView === 'set' || curView === 'help') showView('feed');
     else if (state.query) { $('#search').value = ''; runSearch(''); }
   }
   if (!$('#lightbox').hidden) {

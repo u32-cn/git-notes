@@ -202,10 +202,13 @@ function showView(name) {
   $('#view-feed').classList.toggle('on', dual || name === 'feed');
   $('#view-ai').classList.toggle('on', dual || name === 'ai');
   $('#view-set').classList.toggle('on', name === 'set');
+  $('#view-help').classList.toggle('on', name === 'help');
   $('#btn-nav-feed').classList.toggle('on', name === 'feed');
   $('#btn-nav-ai').classList.toggle('on', name === 'ai');
   $('#btn-nav-set').classList.toggle('on', name === 'set');
+  $('#btn-help').classList.toggle('on', name === 'help');
   if (name === 'set') renderSettingsPage();
+  if (name === 'help' && typeof loadHelpView === 'function') loadHelpView();
   if (name === 'ai') {
     aiLoadConf();   /* 打开 AI 页时刷新配置（其他设备可能已改） */
     var box = $('#ai-msgs');

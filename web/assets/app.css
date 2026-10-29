@@ -747,7 +747,11 @@ mark { background: var(--accent-soft); color: var(--accent); border-radius: 3px;
 .help-faq dd { margin: 2px 0 0 0; color: var(--muted); }
 .help-faq dd { padding-left: 0; }
 
-/* ================= 帮助独立页（help.html，新窗口打开） ================= */
+/* ================= 帮助应用内视图（#view-help，内容 fetch help.html 注入；help.html 直开保留兼容） ================= */
+.help-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+#view-help .help-wrap { max-width: 660px; margin: 0 auto; padding: 0 16px 32px; }
+#view-help .help-head { padding: 14px 0 4px; }
+#view-help .help-body { max-height: none; overflow: visible; padding: 0; }
 body.help-page { margin: 0; }
 .help-page .help-wrap { max-width: 660px; margin: 0 auto; padding: 0 16px 32px; }
 .help-page .help-head { padding: 14px 0 4px; }
