@@ -8,6 +8,7 @@ const fs = require('fs');
 const path = require('path');
 const { spawn } = require('child_process');
 const { Readable } = require('stream');
+const crypto = require('crypto');
 const { pipeline } = require('stream/promises');
 
 const backend = require('./backend/api');
@@ -187,26 +188,40 @@ function createWindow() {
   });
 }
 
-/* 自动更新（方案 B，纯本机行为，无端口/服务）：
-   启动后后台检测 → 有新版自动下载到临时目录 → 弹一次性确认框「立即安装/暂不」；
-   确认后 spawn NSIS 静默安装（/S，覆盖安装并自动拉起新版），当前实例退出。
-   下载/检测失败一律静默放弃（不打扰用户）；冒烟与开发态（非打包）不跑。
+/* 自动更新（方案 C，纯本机行为，无端口/服务）：
+   后台检测 → 下载到 userData/update/（目录内最多保留一个安装包）→ 置 ready 即止，绝不自动弹框；
+   renderer 轮询 /api/update/progress 看到 ready 后把进度 UI 变成「点击安装」，
+   用户点击才 POST /api/update/run 拉起 NSIS 静默安装（/S，覆盖安装并自动拉起新版），当前实例退出。
+   免重下：下载前先查 update 目录是否已有目标版本安装包且 sha512 与更新源一致，命中直接 ready；
+   未命中则清空目录再下（旧版本包不留）。sha512 取 latest.yml（electron-builder 为 base64 形式）。
+   下载先写 .part、成功后改名——防中断残留半截 exe 被当完整包；检测/下载失败静默置 error。
    在途守卫：启动自动检测与顶栏按钮点击可能并发，同时只跑一套。
-   进度状态供 renderer 轮询（GET /api/update/progress）：phase ∈ idle|checking|downloading|ready|none；
-   下载先写 .part、成功后改名——防中断残留半截 exe 被下次点击当完整包弹安装框 */
+   进度状态供 renderer 轮询（GET /api/update/progress）：phase ∈ idle|checking|downloading|ready|none */
 let updating = false;
-const updateProgress = { active: false, phase: 'idle', percent: 0, received: 0, total: 0, latest: '', error: '' };
+const updateProgress = { active: false, phase: 'idle', percent: 0, received: 0, total: 0, latest: '', error: '', file: '' };
 function setProgress(patch) { Object.assign(updateProgress, patch); }
+function updateDir() { return path.join(app.getPath('userData'), 'update'); }
+/* sha512 校验：want 为 latest.yml 的 base64 值；缺失（旧源/校验失败取不到）时返回 false 以触发重下 */
+function sha512Match(file, wantB64) {
+  if (!wantB64) return false;
+  try {
+    return crypto.createHash('sha512').update(fs.readFileSync(file)).digest('base64') === wantB64;
+  } catch (_) { return false; }
+}
 async function autoUpdate() {
   if (updating) return;
   updating = true;
-  setProgress({ active: true, phase: 'checking', percent: 0, received: 0, total: 0, latest: '', error: '' });
+  setProgress({ active: true, phase: 'checking', percent: 0, received: 0, total: 0, latest: '', error: '', file: '' });
   try {
     const r = await backend.checkUpdate();
     if (!r.updateAvailable || !r.url) { setProgress({ active: false, phase: 'none', latest: r.latest || '' }); return; }
     setProgress({ phase: 'downloading', latest: r.latest });
-    const dest = path.join(app.getPath('temp'), 'git-notes-' + r.latest + '-setup.exe');
-    if (!fs.existsSync(dest)) {
+    const dir = updateDir();
+    fs.mkdirSync(dir, { recursive: true });
+    const dest = path.join(dir, 'git-notes-' + r.latest + '-setup.exe');
+    /* 目录里已有目标版本且校验通过 → 免重下；否则清空目录（最多保留一个安装包）再下 */
+    if (!sha512Match(dest, r.sha512)) {
+      for (const f of fs.readdirSync(dir)) { try { fs.unlinkSync(path.join(dir, f)); } catch (_) {} }
       const part = dest + '.part';
       const res = await fetch(r.url, { signal: AbortSignal.timeout(5 * 60 * 1000) });
       if (!res.ok) { setProgress({ active: false, phase: 'idle', error: '更新源 HTTP ' + res.status }); return; }
@@ -226,21 +241,9 @@ async function autoUpdate() {
         try { fs.unlinkSync(part); } catch (_) {}
         throw e;
       }
+      if (!sha512Match(dest, r.sha512)) throw new Error('安装包校验失败（sha512 不符）');
     }
-    setProgress({ phase: 'ready', percent: 100 });
-    const win = BrowserWindow.getAllWindows()[0];
-    const { response } = await dialog.showMessageBox(win, {
-      type: 'info',
-      title: 'Git笔记 更新',
-      message: '新版本 v' + r.latest + ' 已下载（当前 v' + r.current + '），立即安装？',
-      detail: '安装会自动完成并重启应用，笔记数据不受影响。',
-      buttons: ['立即安装', '暂不'],
-      defaultId: 0,
-      cancelId: 1,
-    });
-    if (response !== 0) { fs.unlinkSync(dest); return; }
-    spawn(dest, ['/S'], { detached: true, stdio: 'ignore' }).unref();
-    app.quit();
+    setProgress({ phase: 'ready', percent: 100, file: dest });
   } catch (e) {
     console.error('[update]', e && (e.message || e));
     setProgress({ active: false, phase: 'idle', error: String((e && e.message) || e) });
@@ -248,6 +251,14 @@ async function autoUpdate() {
     updating = false;
     setProgress({ active: false });
   }
+}
+/* 用户在 UI 点「安装」后执行：校验 ready 态与安装包存在，spawn NSIS 静默安装并退出当前实例 */
+function runInstall() {
+  if (updateProgress.phase !== 'ready' || !updateProgress.file || !fs.existsSync(updateProgress.file)) {
+    throw store.appError(409, '安装包尚未就绪，请先下载');
+  }
+  spawn(updateProgress.file, ['/S'], { detached: true, stdio: 'ignore' }).unref();
+  app.quit();
 }
 
 app.whenReady().then(async () => {
@@ -260,9 +271,11 @@ app.whenReady().then(async () => {
   }
   /* 打开仓库文件夹走 Electron shell（替代 server.js 的 spawn explorer） */
   backend.setOpenRepo((p) => shell.openPath(p));
-  /* 顶栏一键更新按钮：renderer POST /api/update/install 触发同一套检测→下载→确认框流程；
+  /* 顶栏一键更新按钮：renderer POST /api/update/install 触发后台检测→下载（到 ready 即止，不弹框）；
+     renderer POST /api/update/run 在 ready 后经用户点击执行静默安装；
      /api/update/progress 由 renderer 轮询读下载进度 */
   backend.setUpdateInstaller(() => { autoUpdate(); });
+  backend.setUpdateRunner(() => { runInstall(); });
   backend.setUpdateProgress(() => ({ ...updateProgress }));
   protocol.handle('gnapp', handleGnapp);
   createWindow();

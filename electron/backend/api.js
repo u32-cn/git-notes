@@ -15,10 +15,13 @@ const VERSION = require('../package.json').version;
 let openRepoImpl = null;
 function setOpenRepo(fn) { openRepoImpl = fn; }
 
-/* 一键更新：由 main.js 注入（触发后台检测→下载→确认框→静默安装），backend 只负责路由入口。
-   立即返回不阻塞响应——下载与确认框在 main 进程异步进行 */
+/* 一键更新：由 main.js 注入（updateInstaller 触发后台检测→下载到 ready 即止不弹框；
+   updateRunner 由用户点击「安装」后执行静默安装并退出），backend 只负责路由入口。
+   立即返回不阻塞响应——下载在 main 进程异步进行 */
 let updateInstaller = null;
 function setUpdateInstaller(fn) { updateInstaller = fn; }
+let updateRunner = null;
+function setUpdateRunner(fn) { updateRunner = fn; }
 /* 下载进度读取器：main.js 注入（phase ∈ idle|checking|downloading|ready，received/total 字节），backend 只透传 */
 let updateProgressGetter = null;
 function setUpdateProgress(fn) { updateProgressGetter = fn; }
@@ -47,12 +50,15 @@ async function checkUpdate() {
     const m = (await r.text()).match(/^version:\s*(\S+)/m);
     if (!m) throw new Error('更新源格式异常');
     const latest = m[1];
+    /* electron-builder latest.yml 的 sha512 为 base64 形式，供安装包完整性校验/免重下复用 */
+    const s = text.match(/^sha512:\s*(\S+)/m);
     return {
       supported: true,
       current: VERSION,
       latest,
       updateAvailable: isNewerVersion(latest, VERSION),
       url: UPDATE_BASE + '/win/git-notes-' + latest + '-setup.exe',
+      sha512: s ? s[1] : '',
     };
   } catch (e) {
     return { supported: true, current: VERSION, latest: null, updateAvailable: false, url: '', error: String((e && e.message) || e) };
@@ -158,6 +164,10 @@ async function route(method, pathname, query, body) {
   } else if (pathname === '/api/update/install' && method === 'POST') {
     if (!updateInstaller) throw store.appError(409, '更新器未初始化');
     updateInstaller();
+    out = { ok: true };
+  } else if (pathname === '/api/update/run' && method === 'POST') {
+    if (!updateRunner) throw store.appError(409, '安装器未初始化');
+    updateRunner();
     out = { ok: true };
   } else if (pathname === '/api/update/progress' && method === 'GET') {
     out = getUpdateProgress();

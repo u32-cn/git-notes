@@ -192,7 +192,7 @@ $('#btn-check-update').onclick = function () {
         b.onclick = function () {
           startUpdate({
             onProgress: function (t) { b.textContent = t; out.textContent = t; },
-            onDone: function (t) { b.textContent = '下载并安装'; out.textContent = t; },
+            onDone: function (t) { b.textContent = updReadyLatest ? '点击安装' : '下载并安装'; out.textContent = t; },
             onFail: function (m) { b.textContent = '下载并安装'; out.textContent = '更新失败：' + m; },
           });
         };
@@ -216,14 +216,17 @@ $('#btn-check-update').onclick = function () {
 /* 一键更新统一流程（顶栏 ⬆ 按钮与设置页「下载并安装」共用，electron/android 同链路，2026-10-29）：
    POST /update/install 发起后台下载即返回，轮询 /update/progress 汇报百分比；
    下载中重复点击不发新请求，只报当前进度（updBusy 守卫 + updLastText 最近文案）。
-   ready 语义：electron 弹确认框待点「立即安装」；android 已自动拉起系统安装器（系统强制人工点「安装」）。
+   ready 语义（两端一致）：下载落盘即止、绝不自动弹安装框；按钮变「点击安装」，
+   用户再次点击 POST /update/run 才拉起安装（electron 静默装+重启，android 拉系统安装器，系统仍强制人工确认）。
    web 版随仓库更新不走此流程。
    启动静默检测 1h 节流（localStorage gnUpdateCheckAt），失败/无新版都保持按钮隐藏 */
 /* 更新按钮即状态胶囊（一眼可见，不靠 toast/hover）：
    new=「⬆ 新版 v0.6.0」、dl=「⬇ 42%（12/89 MB）」实时、ready=「✔ 新版已就绪·点击安装」脉冲、err=失败可点重试、hide=还原隐藏 */
+var updReadyLatest = '';   /* 非 '' 表示安装包已就绪，点击走 /update/run 安装而非重新下载 */
 function updBtnState(mode, text) {
   var b = $('#btn-update'), t = $('#upd-text');
   if (!b || !t) return;
+  updReadyLatest = mode === 'ready' ? (text || '') : '';
   b.classList.remove('dl', 'ready', 'err');
   t.hidden = mode === 'new';
   if (mode === 'hide') { b.hidden = true; return; }
@@ -243,7 +246,8 @@ function updWatchPoll() {
     if (j.phase === 'downloading') { updBtnState('dl', updProgressText(j)); setTimeout(updWatchPoll, 800); }
     else if (j.phase === 'ready') { updWatchOn = false; updBtnState('ready', j.latest); }
     else if (j.phase === 'none') { updWatchOn = false; }
-    else { setTimeout(updWatchPoll, 800); }   /* checking / idle-awaiting-error：继续盯 */
+    else if (j.error) { updWatchOn = false; updBtnState('err', j.error); }   /* 后端置 idle+error：停轮询转失败态 */
+    else { setTimeout(updWatchPoll, 800); }   /* checking：继续盯 */
   }).catch(function () { if (updWatchOn) setTimeout(updWatchPoll, 1600); });
 }
 function updWatchRestore() {
@@ -262,6 +266,12 @@ function updProgressText(j) {
   if (j.total) t += '（' + updMB(j.received) + '/' + updMB(j.total) + ' MB）';
   return t;
 }
+/* 用户在 ready 态点击「安装」：POST /update/run 拉起安装（electron 静默装并重启；android 拉系统安装器） */
+function updRunInstall() {
+  var latest = updReadyLatest;
+  toast('正在启动安装 v' + latest + '……');
+  api('POST', '/update/run').catch(function (e) { toast('安装失败：' + e.message, 'err'); });
+}
 function startUpdate(h) {
   h = h || {};
   if (updBusy) {
@@ -270,11 +280,12 @@ function startUpdate(h) {
     toast(cur);
     return;
   }
+  /* 安装包已就绪：点击即安装，不再发起下载 */
+  if (updReadyLatest) { updRunInstall(); return; }
   updBusy = true;
   updLastText = '';
   function done(t) { updBusy = false; if (h.onDone) h.onDone(t); }
   function fail(m) { updBusy = false; if (h.onFail) h.onFail(m); }
-  var android = state.platform === 'android';
   toast('开始下载更新……');
   api('POST', '/update/install').catch(function (e) { fail(e.message); });
   /* POST 发起后端后台走 检测→下载；progress 未就绪（idle 无 error）时继续轮询 */
@@ -287,7 +298,7 @@ function startUpdate(h) {
         if (h.onProgress) h.onProgress(updLastText);
       } else if (j.phase === 'ready') {
         updBtnState('ready', j.latest);
-        done(android ? '已拉起安装器，请在系统弹窗中点「安装」' : '新版本 v' + j.latest + ' 已下载，请在弹窗中确认安装');
+        done('新版本 v' + j.latest + ' 已下载，点击「安装」按钮完成安装');
         return;
       } else if (j.phase === 'none') {
         updBtnState('hide');
@@ -316,7 +327,15 @@ function bootUpdateCheck() {
   } catch (_) { /* localStorage 不可用则不节流，照常检测 */ }
   api('GET', '/update/check').then(function (j) {
     try { localStorage.setItem('gnUpdateCheckAt', String(Date.now())); } catch (_) {}
-    if (j.supported && j.updateAvailable) showUpdateBtn(j.latest);
+    if (j.supported && j.updateAvailable) {
+      showUpdateBtn(j.latest);
+      /* 应用重启后桌面端进度已复位（安装包可能仍在 update 目录待装，startup 检测会落 ready）：
+         挂一次轮询，及时把胶囊切到「✔ 点击安装」。android 后端无启动自动检测，不挂 */
+      if (location.protocol === 'gnapp:' && !updWatchOn) {
+        updWatchOn = true;
+        updWatchPoll();
+      }
+    }
   }).catch(function () { /* 静默：网络失败不打扰 */ });
   updWatchRestore();   /* 接续页面重载前已在途的下载/已就绪状态 */
 }

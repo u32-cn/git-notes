@@ -8,9 +8,9 @@ import android.os.ParcelFileDescriptor
 import java.io.File
 
 /**
- * 零依赖版 FileProvider：只读暴露 cacheDir/update/ 下的 APK，供系统安装器读取。
+ * 零依赖版 FileProvider：只读暴露 filesDir/update/ 下的 APK，供系统安装器读取。
  * 不用 androidx.core 的 FileProvider（项目纯 framework API，无 androidx 依赖）。
- * 仅支持 path 段 "update/<文件名>"，文件必须已存在于 cacheDir/update/，防目录穿越。
+ * 仅支持 path 段 "update/<文件名>"，文件必须已存在于 filesDir/update/，防目录穿越。
  */
 class ApkProvider : ContentProvider() {
 
@@ -20,7 +20,7 @@ class ApkProvider : ContentProvider() {
         if (mode != "r") throw SecurityException("只读")
         val name = uri.lastPathSegment ?: throw IllegalArgumentException("缺文件名")
         if (!name.matches(Regex("[A-Za-z0-9._-]+"))) throw IllegalArgumentException("非法文件名")
-        val f = File(File(context!!.cacheDir, "update"), name)
+        val f = File(File(context!!.filesDir, "update"), name)
         if (!f.isFile) throw IllegalArgumentException("文件不存在")
         return ParcelFileDescriptor.open(f, ParcelFileDescriptor.MODE_READ_ONLY)
     }

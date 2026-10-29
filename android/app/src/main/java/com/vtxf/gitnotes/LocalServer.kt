@@ -291,8 +291,11 @@ class LocalServer(private val context: Context) {
 
             path == "/api/update/check" && req.method == "GET" -> checkUpdate()
 
-            // 应用内一键更新：POST 立即返回、后台下载 APK 后拉起系统安装器（最后一步系统强制用户点「安装」）
+            // 应用内一键更新：POST 立即返回、后台下载 APK 到 ready 即止（不自动拉起安装器）
             path == "/api/update/install" && req.method == "POST" -> installUpdate()
+
+            // 用户在 UI 点「安装」后拉起系统安装器（系统仍强制人工点「安装」，此处只是不自动弹窗）
+            path == "/api/update/run" && req.method == "POST" -> runInstallReady()
 
             // 更新进度轮询（与 electron 端 /api/update/progress 同构，phase ∈ idle|checking|downloading|ready|none）
             path == "/api/update/progress" && req.method == "GET" -> updateProgress()
@@ -545,10 +548,13 @@ class LocalServer(private val context: Context) {
         return false
     }
 
-    // 应用内一键更新：POST /api/update/install 立即返回、后台线程 检测→下载 APK → ApkProvider 内容 URI →
-    // ACTION_INSTALL_PACKAGE（系统强制最后一步人工点「安装」）。进度状态供前端轮询 GET /api/update/progress，
-    // phase 语义与 electron 端 autoUpdate 对齐：idle|checking|downloading|ready|none，error 随 idle 附带。
-    // 首次使用若未授予「安装未知应用」权限，系统会先引导到授权页，回来重试即可。
+    // 应用内一键更新（与 electron 端方案对齐）：POST /api/update/install 立即返回、后台线程 检测→下载 APK →
+    // 落盘校验通过即置 ready，不自动拉起安装器；用户点 UI「安装」后 POST /api/update/run 才拉起
+    // ACTION_INSTALL_PACKAGE（系统仍强制人工点「安装」）。进度状态供前端轮询 GET /api/update/progress，
+    // phase 语义与 electron 端对齐：idle|checking|downloading|ready|none，error 随 idle 附带。
+    // 下载目录用 filesDir/update（持久，cacheDir 可能被系统清掉导致重复下载），目录内最多保留一个 APK：
+    // 已有目标版本且 sha512 校验通过直接免重下，否则清空目录重下。
+    // 首次安装若未授予「安装未知应用」权限，系统会先引导到授权页，回来再点一次「安装」即可。
     private val updLock = Any()
     private val updState = JSONObject().put("phase", "idle").put("percent", 0).put("received", 0L)
         .put("total", 0L).put("latest", "").put("error", "").put("active", false)
@@ -559,6 +565,9 @@ class LocalServer(private val context: Context) {
     }
 
     private fun updateProgress(): JSONObject = synchronized(updLock) { JSONObject(updState.toString()) }
+
+    private fun apkSha512(file: File): String =
+        MessageDigest.getInstance("SHA-512").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
 
     private fun installUpdate(): JSONObject {
         synchronized(updLock) {
@@ -573,6 +582,21 @@ class LocalServer(private val context: Context) {
         return JSONObject().put("ok", true).put("started", true)
     }
 
+    // ready 态用户点击「安装」：APK 在位才拉起系统安装器；保持 ready 以便用户取消授权/安装后可再点
+    private fun runInstallReady(): JSONObject {
+        val (phase, ver) = synchronized(updLock) { updState.optString("phase") to updState.optString("latest") }
+        if (phase != "ready" || ver.isEmpty()) throw LocalApiError(409, "安装包尚未就绪，请先下载")
+        val apk = File(File(context.filesDir, "update"), "git-notes-v$ver.apk")
+        if (!apk.exists()) throw LocalApiError(409, "安装包已丢失，请重新下载")
+        val uri = Uri.parse("content://com.vtxf.gitnotes.apk/update/" + apk.name)
+        val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
+            setDataAndType(uri, "application/vnd.android.package-archive")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        Handler(Looper.getMainLooper()).post { context.startActivity(intent) }
+        return JSONObject().put("ok", true)
+    }
+
     private fun runUpdateFlow() {
         try {
             val cur = checkUpdate()
@@ -583,10 +607,17 @@ class LocalServer(private val context: Context) {
             val url = cur.optString("url")
             if (url.isEmpty()) throw LocalApiError(500, "更新源缺少下载地址")
             val ver = cur.optString("latest")
-            val dir = File(context.cacheDir, "update").apply { mkdirs() }
+            val dir = File(context.filesDir, "update").apply { mkdirs() }
             val apk = File(dir, "git-notes-v$ver.apk")
             updSet { put("phase", "downloading").put("latest", ver) }
+            val wantSha = cur.optString("sha512")
+            // 复用已下载的 APK 也强校验 sha512，防残留损坏包：仅当校验通过才保留，否则删掉重下
+            if (apk.exists() && !(wantSha.isNotEmpty() && apkSha512(apk).equals(wantSha, ignoreCase = true))) {
+                apk.delete()
+            }
             if (!apk.exists()) {
+                // 目录内最多保留一个安装包：下载前清掉旧版本残留
+                dir.listFiles()?.forEach { it.delete() }
                 // 先写临时名再原子改名：中途断流不留半截 APK 冒充完整包
                 val tmp = File(dir, "git-notes-v$ver.apk.part")
                 val conn = URL(url).openConnection() as HttpURLConnection
@@ -613,13 +644,9 @@ class LocalServer(private val context: Context) {
                     }
                     if (tmp.length() < 1024 * 1024) throw LocalApiError(502, "下载不完整")
                     // 更新源带 sha512 时强校验，不符拒绝安装（比依赖系统安装期签名校验更早暴露包损坏/被替换）
-                    val wantSha = cur.optString("sha512")
-                    if (wantSha.isNotEmpty()) {
-                        val digest = MessageDigest.getInstance("SHA-512").digest(tmp.readBytes())
-                            .joinToString("") { "%02x".format(it) }
-                        if (!digest.equals(wantSha, ignoreCase = true)) throw LocalApiError(502, "APK 校验失败（sha512 不符），已拒绝安装")
+                    if (wantSha.isNotEmpty() && !apkSha512(tmp).equals(wantSha, ignoreCase = true)) {
+                        throw LocalApiError(502, "APK 校验失败（sha512 不符），已拒绝安装")
                     }
-                    if (apk.exists()) apk.delete()
                     if (!tmp.renameTo(apk)) throw LocalApiError(500, "APK 落盘失败")
                 } catch (e: Exception) {
                     tmp.delete()
@@ -628,12 +655,7 @@ class LocalServer(private val context: Context) {
                     conn.disconnect()
                 }
             }
-            val uri = Uri.parse("content://com.vtxf.gitnotes.apk/update/" + apk.name)
-            val intent = Intent(Intent.ACTION_INSTALL_PACKAGE).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            Handler(Looper.getMainLooper()).post { context.startActivity(intent) }
+            // 到此即止：置 ready 等用户在 UI 点「安装」，不自动拉起系统安装器
             updSet { put("phase", "ready").put("percent", 100) }
         } catch (e: Exception) {
             updSet { put("phase", "idle").put("error", e.message ?: e.toString()) }
