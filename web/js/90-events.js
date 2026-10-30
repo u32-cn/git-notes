@@ -84,6 +84,7 @@ $('#feed').addEventListener('contextmenu', function (ev) {
   if (!a) return;
   ev.preventDefault();
   var href = a.getAttribute('href') || '';
+  if (href.indexOf('gn-external://') === 0) href = href.slice('gn-external://'.length);
   if (!href) return;
   if (!(navigator.clipboard && navigator.clipboard.writeText)) { toast('当前环境不支持复制链接', 'err'); return; }
   navigator.clipboard.writeText(href).then(function () {
@@ -91,6 +92,17 @@ $('#feed').addEventListener('contextmenu', function (ev) {
   }, function () {
     toast('复制失败', 'err');
   });
+});
+
+/* gn-external:// 外链分发（链接统一带前缀，见 20-util.js textHtml 注释）：
+   web 浏览器版在此 window.open 新标签；gnapp/安卓不拦截，放行默认导航交给
+   electron will-navigate / 安卓 shouldOverrideUrlLoading 交系统浏览器 */
+document.addEventListener('click', function (ev) {
+  var a = (ev.target && ev.target.closest) ? ev.target.closest('a[href^="gn-external://"]') : null;
+  if (!a) return;
+  if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
+  ev.preventDefault();
+  window.open(a.getAttribute('href').slice('gn-external://'.length), '_blank', 'noopener');
 });
 
 /* 待办复选框：change 事件委托（禁 inline handler） */

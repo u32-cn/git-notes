@@ -403,6 +403,7 @@ function deletePost(path) {
       status('删除中…');
       apiDeletePost(path).then(function () {
         state.posts = state.posts.filter(function (x) { return x.path !== path; });
+        state.pinPosts = state.pinPosts.filter(function (x) { return x.path !== path; });
         renderAll();
         toast('已删除（git 历史可找回）', 'ok');
         settleStatus();

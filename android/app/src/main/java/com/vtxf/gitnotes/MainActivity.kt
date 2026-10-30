@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.Message
 import android.provider.MediaStore
 import android.view.Gravity
 import android.view.View
@@ -59,16 +58,21 @@ class MainActivity : Activity() {
             allowContentAccess = false
             useWideViewPort = true
             loadWithOverviewMode = true
-            // help.html 经 window.open 打开：必须开多窗口支持 onCreateWindow 才会回调
-            setSupportMultipleWindows(true)
+            // 不开多窗口：外链已由前端改为 gn-external:// 前缀，分发收敛在 shouldOverrideUrlLoading 单点
         }
         web.webViewClient = object : WebViewClient() {
-            // 引导页平台直达链接（Gitee/GitHub/Codeup 等）：非本机服务的外链一律交系统浏览器
+            // 外链分发单点：gn-external:// 前缀（前端统一改写，见 web/js/20-util.js textHtml）
+            // 剥前缀交系统浏览器；旧缓存前端的明文外链（非本机 host）同样交系统浏览器；其余应用内加载
             override fun shouldOverrideUrlLoading(view: WebView, request: WebResourceRequest): Boolean {
                 val url = request.url
-                if (url.host != "127.0.0.1") {
+                val open: Uri? = when {
+                    url.scheme == "gn-external" -> Uri.parse(url.toString().removePrefix("gn-external://"))
+                    url.host != "127.0.0.1" && (url.scheme == "http" || url.scheme == "https") -> url
+                    else -> null
+                }
+                if (open != null) {
                     try {
-                        startActivity(Intent(Intent.ACTION_VIEW, url))
+                        startActivity(Intent(Intent.ACTION_VIEW, open))
                     } catch (e: Exception) {
                         Toast.makeText(this@MainActivity, "未找到可打开链接的应用", Toast.LENGTH_SHORT).show()
                     }
@@ -92,26 +96,6 @@ class MainActivity : Activity() {
             }
         }
         web.webChromeClient = object : WebChromeClient() {
-            // 帮助文档 help.html 经 window.open 请求新窗：安卓单窗口形态，改为在当前
-            // WebView 直接导航（临时 WebView 接住 url 再转交主 WebView），返回键可回到主界面
-            override fun onCreateWindow(
-                view: WebView,
-                isDialog: Boolean,
-                isUserGesture: Boolean,
-                resultMsg: Message,
-            ): Boolean {
-                val temp = WebView(view.context)
-                temp.webViewClient = object : WebViewClient() {
-                    override fun shouldOverrideUrlLoading(v: WebView, request: WebResourceRequest): Boolean {
-                        web.loadUrl(request.url.toString())
-                        return true
-                    }
-                }
-                (resultMsg.obj as WebView.WebViewTransport).webView = temp
-                resultMsg.sendToTarget()
-                return true
-            }
-
             override fun onShowFileChooser(
                 webView: WebView,
                 callback: ValueCallback<Array<Uri>>,

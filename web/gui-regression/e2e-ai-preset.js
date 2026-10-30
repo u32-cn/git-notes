@@ -58,7 +58,7 @@ server.stderr.on('data', d => process.stderr.write('[srv-err] ' + d));
   await page.waitForTimeout(300);
   ok((await page.$eval('#ai-base', el => el.value)) === 'https://open.bigmodel.cn/api/paas/v4', '智谱免费自动填 paas/v4');
   ok((await page.$eval('#ai-model', el => el.value)) === 'glm-4.7-flash', 'model 填 glm-4.7-flash');
-  ok((await page.$eval('#ai-key-link', el => el.href)) === 'https://bigmodel.cn/apikey/platform', 'Key 链接指向 bigmodel.cn/apikey/platform');
+  ok((await page.$eval('#ai-key-link', el => el.href)) === 'gn-external://https://bigmodel.cn/apikey/platform', 'Key 链接带 gn-external 前缀指向 bigmodel.cn/apikey/platform');
 
   await page.fill('#ai-key', 'test-key-zf');
   await page.click('#btn-ai-save');

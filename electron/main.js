@@ -174,8 +174,17 @@ function createWindow() {
       else wc.openDevTools({ mode: 'detach' });
     }
   });
+  /* gn-external:// 外链（前端统一改写，见 web/js/20-util.js textHtml）：顶层导航拦截，
+     剥前缀交系统浏览器；其余本应用内导航不动 */
+  win.webContents.on('will-navigate', (e, url) => {
+    if (!/^gn-external:\/\//i.test(url)) return;
+    e.preventDefault();
+    const real = url.slice('gn-external://'.length);
+    if (/^https?:\/\//i.test(real)) shell.openExternal(real);
+  });
   /* 引导页平台直达链接（Gitee/GitHub/Codeup 等）：外链一律交系统浏览器，不开应用内窗口；
-     help.html（帮助文档）放行为应用内子窗口（gnapp:// 纯本地，零端口红线不破坏） */
+     help.html（帮助文档）放行为应用内子窗口（gnapp:// 纯本地，零端口红线不破坏）。
+     target=_blank 分支仅作旧缓存前端兜底——新前端外链已全部走 gn-external:// 顶层导航 */
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^gnapp:\/\/app\/help\.html$/i.test(url)) {
       return {

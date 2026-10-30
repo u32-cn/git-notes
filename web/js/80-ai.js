@@ -102,7 +102,7 @@ var AI_PROVIDERS = [
 function aiSetKeyLink(url) {
   var a = $('#ai-key-link');
   if (url) {
-    a.href = url;
+    a.href = 'gn-external://' + url;   /* 三端拦截分发（见 20-util.js textHtml 注释） */
     a.removeAttribute('aria-disabled');
     a.classList.remove('is-off');
   } else {

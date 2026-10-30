@@ -82,12 +82,14 @@ function postTime(p) {
 function esc(s) {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
-/* 纯文本展示：转义 + 保留换行 + http(s) 链接可点击 */
+/* 纯文本展示：转义 + 保留换行 + http(s) 链接可点击。
+   外链走 gn-external:// 前缀：三端各自拦截分发（安卓 shouldOverrideUrlLoading / electron
+   will-navigate 交系统浏览器；web 浏览器版由 90-events.js 点击代理 window.open 新标签） */
 function textHtml(s) {
   return esc(s).replace(/(https?:\/\/[^\s]+)/g, function (_, u) {
     var trail = '';
     while (u && /[.,;:!?、。！？…）)]$/.test(u.charAt(u.length - 1))) { trail = u.charAt(u.length - 1) + trail; u = u.slice(0, -1); }
-    return '<a href="' + u + '" target="_blank" rel="noopener noreferrer">' + u + '</a>' + trail;
+    return '<a href="gn-external://' + u + '">' + u + '</a>' + trail;
   });
 }
 function mediaUrl(dir, name) { return '/media/' + encodeURIComponent(dir + '/' + name); }
