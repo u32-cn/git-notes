@@ -1,7 +1,7 @@
 {
   "name": "git-notes",
   "productName": "GitNotes",
-  "version": "0.6.5",
+  "version": "0.6.6",
   "description": "Git笔记 Electron 桌面版：零端口单机架构（gnapp:// 协议，后端为 Node 直写原生后端，语义对齐 web/server.js）",
   "main": "main.js",
   "private": true,

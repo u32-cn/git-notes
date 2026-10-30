@@ -47,7 +47,8 @@ async function checkUpdate() {
   try {
     const r = await fetch(UPDATE_BASE + '/win/latest.yml', { signal: AbortSignal.timeout(8000) });
     if (!r.ok) throw new Error('更新源 HTTP ' + r.status);
-    const m = (await r.text()).match(/^version:\s*(\S+)/m);
+    const text = await r.text();
+    const m = text.match(/^version:\s*(\S+)/m);
     if (!m) throw new Error('更新源格式异常');
     const latest = m[1];
     /* electron-builder latest.yml 的 sha512 为 base64 形式，供安装包完整性校验/免重下复用 */
