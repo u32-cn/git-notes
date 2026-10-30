@@ -95,14 +95,23 @@ $('#feed').addEventListener('contextmenu', function (ev) {
 });
 
 /* gn-external:// 外链分发（链接统一带前缀，见 20-util.js textHtml 注释）：
-   web 浏览器版在此 window.open 新标签；gnapp/安卓不拦截，放行默认导航交给
-   electron will-navigate / 安卓 shouldOverrideUrlLoading 交系统浏览器 */
+   gnapp（Electron）在此 preventDefault + window.open（setWindowOpenHandler → 系统浏览器；
+   Chromium 对未知 scheme 不发 will-navigate，不能靠顶层导航）；web 浏览器版同样 window.open
+   新标签；安卓（http 回环 + Android UA）必须放行默认导航，交给 shouldOverrideUrlLoading */
 document.addEventListener('click', function (ev) {
   var a = (ev.target && ev.target.closest) ? ev.target.closest('a[href^="gn-external://"]') : null;
   if (!a) return;
-  if (location.protocol !== 'http:' && location.protocol !== 'https:') return;
-  ev.preventDefault();
-  window.open(a.getAttribute('href').slice('gn-external://'.length), '_blank', 'noopener');
+  var real = a.getAttribute('href').slice('gn-external://'.length);
+  if (location.protocol === 'gnapp:') {
+    ev.preventDefault();
+    window.open(real, '_blank', 'noopener');
+    return;
+  }
+  if (/Android/i.test(navigator.userAgent)) return;
+  if (location.protocol === 'http:' || location.protocol === 'https:') {
+    ev.preventDefault();
+    window.open(real, '_blank', 'noopener');
+  }
 });
 
 /* 待办复选框：change 事件委托（禁 inline handler） */
