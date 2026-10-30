@@ -2,7 +2,7 @@
    往 AI_TOOLS/AI_EXEC/AI_TOOL_LABEL 注册，只读/门控清单经 AI_RO_TOOLS/AI_GATE_TOOLS 注入 80-ai.js 的钩子） ================= */
 
 var AI_RO_TOOLS = ['app_info', 'set_font_size', 'set_theme', 'ssh_key_info'];
-var AI_GATE_TOOLS = ['set_tags', 'ssh_key_rotate', 'ssh_key_import'];
+var AI_GATE_TOOLS = ['set_tags', 'ssh_key_rotate', 'ssh_key_import', 'open_url'];
 
 AI_TOOL_LABEL.app_info = '查询应用信息';
 AI_TOOL_LABEL.set_font_size = '查询/设置字号';
@@ -11,6 +11,7 @@ AI_TOOL_LABEL.set_tags = '管理标签清单';
 AI_TOOL_LABEL.ssh_key_info = '查看 SSH 公钥';
 AI_TOOL_LABEL.ssh_key_rotate = '重新生成 SSH 密钥';
 AI_TOOL_LABEL.ssh_key_import = '导入 SSH 私钥';
+AI_TOOL_LABEL.open_url = '用系统浏览器打开网页';
 
 function aiPlatformName(p) {
   return { win32: 'Windows', darwin: 'macOS', linux: 'Linux', android: 'Android' }[p] || (p || '未知');
@@ -137,6 +138,22 @@ AI_EXEC.set_tags = tSetTags;
 AI_EXEC.ssh_key_info = tSshKeyInfo;
 AI_EXEC.ssh_key_rotate = tSshKeyRotate;
 AI_EXEC.ssh_key_import = tSshKeyImport;
+AI_EXEC.open_url = tOpenUrl;
+
+/* 用系统默认浏览器打开网页：安卓 WebView 的 window.open 无效（见 745cded），走 location.href
+   让 shouldOverrideUrlLoading 收到干净 https 交系统浏览器；其余端 window.open → Electron
+   setWindowOpenHandler / 浏览器新标签 */
+function tOpenUrl(a) {
+  var u = String(a.url || '').trim();
+  if (!/^https?:\/\//i.test(u)) return Promise.resolve('错误：url 必须是 http(s) 完整地址，收到：' + aiClip(u, 80));
+  var host = u.replace(/^https?:\/\//i, '').split('/')[0];
+  return aiGate('open_url', ['在系统浏览器打开：' + u], 1).then(function (ok) {
+    if (!ok) return '用户拒绝了本次打开网页。';
+    if (/Android/i.test(navigator.userAgent)) location.href = u;
+    else window.open(u, '_blank', 'noopener');
+    return '已在系统浏览器打开 ' + host + '（若未弹出请检查浏览器窗口是否被遮挡）。';
+  });
+}
 
 AI_TOOLS.push(
   aiTool('app_info', '查询应用自身信息：应用名、版本与构建、官网、开源地址、运行端、仓库状态、SSH 密钥状态、AI 权限模式。用户问「你自己/这个应用/版本/官网/源码在哪」时必须用它，不要凭空回答。', {}),
@@ -154,5 +171,8 @@ AI_TOOLS.push(
   aiTool('ssh_key_rotate', '删除现有 SSH 密钥并重新生成，返回新公钥。旧密钥立即作废：换钥后必须提醒用户把新公钥添加到 Gitee/GitHub 的 SSH Keys，否则多端同步失败。需用户确认。', {}),
   aiTool('ssh_key_import', '导入用户粘贴的 OpenSSH 私钥文本（无口令），覆盖本机密钥并派生公钥。仅在用户明确要求迁移/恢复密钥且粘贴了私钥内容时使用。需用户确认。', {
     private_key: { type: 'string', description: 'OpenSSH 格式私钥全文（含 BEGIN/END 行）' }
-  }, ['private_key'])
+  }, ['private_key']),
+  aiTool('open_url', '用系统默认浏览器打开网页（离开本应用）。用户说「打开/访问某网页」「帮我把这个链接在浏览器里打开」时使用；仅 http/https。需用户确认。', {
+    url: { type: 'string', description: '完整的 http(s) 网页地址' }
+  }, ['url'])
 );
