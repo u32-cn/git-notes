@@ -179,6 +179,8 @@ async function route(method, pathname, query, body) {
     out = await git.enqueueWrite(() => git.setAiSettings(git.validAiConfig(body)));
   } else if (pathname === '/api/ai/providers' && method === 'GET') {
     out = await aiProviders();
+  } else if (pathname === '/api/http/request' && method === 'POST') {
+    out = await httpRequestTool(body);
   } else if (pathname === '/api/fs/list' && method === 'GET') {
     out = git.fsList(query.get('path') || '');
   } else if (pathname === '/api/fs/read' && method === 'GET') {
@@ -298,6 +300,124 @@ async function handleAiProxy(req) {
 }
 function jsonResponse(status, obj) {
   return new Response(JSON.stringify(obj), { status, headers: { 'Content-Type': 'application/json; charset=utf-8' } });
+}
+
+/* ================= 通用 HTTP 请求端点（AI 工具 http_request / web_fetch 的服务端执行器） =================
+   对齐 web/server.js httpRequestTool（改动需手工同步两端）：
+   本进程 fetch 无 CORS；手动跟随重定向并对每跳校验主机，拒绝内网地址（防 SSRF）；
+   响应按 max_bytes 截断整体读入，字符集按 Content-Type 解码（GBK 站点转 gb18030）。 */
+
+const HTTP_METHODS = ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'];
+const HTTP_DEFAULT_MAX = 512 * 1024;
+const HTTP_LIMIT_MAX = 5 * 1024 * 1024;
+
+function httpPrivateHost(host) {
+  const h = String(host).toLowerCase().replace(/^\[|\]$/g, '');
+  if (h === 'localhost' || h.endsWith('.localhost') || h.endsWith('.local') || h.endsWith('.internal')) return true;
+  const m = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(h);
+  if (m) {
+    const a = Number(m[1]), b = Number(m[2]);
+    if (a === 0 || a === 10 || a === 127) return true;
+    if (a === 169 && b === 254) return true;
+    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 192 && b === 168) return true;
+    if (a >= 224) return true;   /* 组播/保留段 */
+  }
+  if (h === '::' || h === '::1' || /^f[ce]/.test(h) || /^fe[89ab]/.test(h)) return true;   /* IPv6 回环/ULA/链路本地 */
+  return false;
+}
+
+function httpPickCharset(contentType) {
+  const m = /charset=([\w-]+)/i.exec(String(contentType || ''));
+  const name = m ? m[1].toLowerCase() : '';
+  return (name === 'gbk' || name === 'gb2312' || name === 'gb18030') ? 'gb18030' : (name || 'utf-8');
+}
+
+async function httpReadCapped(stream, maxBytes) {
+  if (!stream) return { buf: Buffer.alloc(0), truncated: false };
+  const chunks = [];
+  let total = 0, truncated = false;
+  try {
+    for await (const c of stream) {
+      chunks.push(c);
+      total += c.length;
+      if (total >= maxBytes) { truncated = true; break; }
+    }
+  } catch (_) { /* 中途断开：返回已读部分 */ }
+  return { buf: Buffer.concat(chunks).subarray(0, maxBytes), truncated };
+}
+
+async function httpRequestTool(body) {
+  const urlStr = String((body && body.url) || '').trim();
+  if (!/^https?:\/\//i.test(urlStr) || urlStr.length > 2000) throw store.appError(400, 'url 非法（仅支持 http/https）');
+  const method = String((body && body.method) || 'GET').toUpperCase();
+  if (HTTP_METHODS.indexOf(method) === -1) throw store.appError(400, 'method 不支持：' + method);
+  const timeoutMs = Math.min(Math.max(Number(body && body.timeout_ms) || 20000, 1000), 60000);
+  const maxBytes = Math.min(Math.max(Number(body && body.max_bytes) || HTTP_DEFAULT_MAX, 1024), HTTP_LIMIT_MAX);
+  const wantB64 = (body && body.encoding) === 'base64';
+  const rawHeaders = (body && body.headers && typeof body.headers === 'object' && !Array.isArray(body.headers)) ? body.headers : {};
+  const reqHeaders = {};
+  Object.keys(rawHeaders).slice(0, 30).forEach((k) => {
+    const name = String(k).replace(/[^\x21-\x7e]/g, '');
+    const value = String(rawHeaders[k] == null ? '' : rawHeaders[k]).replace(/[\r\n]/g, '').slice(0, 4000);
+    /* 逐跳头由 fetch 自己管理，禁止伪造 */
+    if (name && !/^(host|content-length|connection|transfer-encoding|upgrade)$/i.test(name)) reqHeaders[name] = value;
+  });
+  const hasBody = ['POST', 'PUT', 'PATCH', 'DELETE'].indexOf(method) > -1 && body && body.body != null;
+  const bodyStr = hasBody ? String(body.body) : undefined;
+  if (bodyStr !== undefined && !reqHeaders['Content-Type']) reqHeaders['Content-Type'] = 'text/plain; charset=utf-8';
+
+  let current = urlStr, redirects = 0, res = null;
+  while (true) {
+    let u;
+    try { u = new URL(current); } catch (_) { throw store.appError(400, 'url 解析失败：' + current); }
+    if (httpPrivateHost(u.hostname)) throw store.appError(400, '拒绝访问内网地址：' + u.hostname);
+    try {
+      res = await fetch(current, {
+        method: method,
+        headers: reqHeaders,
+        body: bodyStr,
+        redirect: 'manual',
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (e) {
+      throw store.appError(502, '请求失败：' + ((e && e.message) || e));
+    }
+    const loc = res.headers.get('location');
+    if (res.status >= 300 && res.status < 400 && loc) {
+      try { if (res.body) res.body.cancel(); } catch (_) {}
+      if (++redirects > 5) throw store.appError(508, '重定向次数超限（>5）');
+      try { current = new URL(loc, current).href; } catch (_) { throw store.appError(400, '重定向地址非法：' + loc); }
+      continue;
+    }
+    break;
+  }
+
+  const contentType = res.headers.get('content-type') || '';
+  const { buf, truncated } = await httpReadCapped(res.body, maxBytes);
+  const charset = httpPickCharset(contentType);
+  let text, encoding;
+  try {
+    const dec = new TextDecoder(charset);
+    text = dec.decode(buf);
+    encoding = 'text';
+  } catch (_) {
+    text = buf.toString('base64');
+    encoding = 'base64';
+  }
+  if (wantB64 && encoding === 'text' && !/^text\/|json|xml|javascript|html/i.test(contentType)) {
+    text = buf.toString('base64');
+    encoding = 'base64';
+  }
+  return {
+    status: res.status,
+    content_type: contentType,
+    size: buf.length,
+    truncated: truncated,
+    final_url: current,
+    encoding: encoding,
+    text: text,
+  };
 }
 
 module.exports = { handleApi, handleAiProxy, setOpenRepo, setUpdateInstaller, setUpdateRunner, setUpdateProgress, VERSION, checkUpdate };

@@ -16,6 +16,7 @@ import java.net.ServerSocket
 import java.net.Socket
 import java.net.URL
 import java.net.URLDecoder
+import java.nio.charset.Charset
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.concurrent.Executors
@@ -31,7 +32,7 @@ import org.json.JSONObject
  * - /healthz → {"ok":true,"version":...,"pid":...}
  * - /media/micro/... → 仓库配图直出（cookie 鉴权 + 路径白名单）
  * - /api/status | setup/local | setup/key(+rotate) | setup/clone | bind 系五端点 | unbind | sync |
- *   force-push | posts(GET/POST/PUT/DELETE) | tags | search | git 历史三端点(log/show/restore) | repo/open(移动端返回不支持) → 本地 GitRepo（JGit）
+ *   force-push | posts(GET/POST/PUT/DELETE) | tags | search | git 历史三端点(log/show/restore) | repo/open(移动端返回不支持) | http/request(AI 通用 HTTP) → 本地 GitRepo（JGit）
  *
  * 安全红线：只绑回环；Host 校验防 DNS rebinding；cookie（SameSite=Lax）+ 随机令牌防跨站；
  * 日志不打印请求头、cookie 与查询串。
@@ -441,6 +442,9 @@ class LocalServer(private val context: Context) {
 
             path == "/api/ai/providers" && req.method == "GET" -> aiProviders()
 
+            // 通用 HTTP 请求端点（AI 工具 http_request / web_fetch 的服务端执行器，对齐 web/server.js）
+            path == "/api/http/request" && req.method == "POST" -> httpRequestTool(body)
+
             path == "/api/ai/settings" && req.method == "POST" -> {
                 if (repo.syncState.busy || repo.writeBusy) throw LocalApiError(409, "已有写操作进行中，请稍候")
                 // 规范化（对齐 web validAiConfig）：未知字段丢弃，extra 须为对象（权限模式不入仓，各端存本机）
@@ -798,6 +802,145 @@ class LocalServer(private val context: Context) {
         aiProvidersCacheFailAt = now
         aiProvidersLastBuiltin = true
         return JSONObject().put("version", 1).put("builtin", true).put("providers", builtin)
+    }
+
+    // ================= 通用 HTTP 请求端点（AI 工具 http_request / web_fetch 的服务端执行器） =================
+    // 对齐 web/server.js httpRequestTool（改动需手工同步三端）：本机发请求无 CORS；
+    // 手动跟随重定向并对每跳校验主机，拒绝内网地址（防 SSRF）；响应按 max_bytes 截断，
+    // 字符集按 Content-Type 解码（GBK 站点转 GB18030）；非文本响应回退 base64。
+
+    private val HTTP_METHODS = listOf("GET", "HEAD", "POST", "PUT", "PATCH", "DELETE", "OPTIONS")
+
+    private fun httpPrivateHost(host: String): Boolean {
+        val h = host.lowercase().trim('[', ']')
+        if (h == "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) return true
+        val m = Regex("^(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})$").find(h)
+        if (m != null) {
+            val a = m.groupValues[1].toInt()
+            val b = m.groupValues[2].toInt()
+            if (a == 0 || a == 10 || a == 127) return true
+            if (a == 169 && b == 254) return true
+            if (a == 172 && b in 16..31) return true
+            if (a == 192 && b == 168) return true
+            if (a >= 224) return true   // 组播/保留段
+        }
+        if (h == "::" || h == "::1" || Regex("^f[ce]").containsMatchIn(h) || Regex("^fe[89ab]").containsMatchIn(h)) return true   // IPv6 回环/ULA/链路本地
+        return false
+    }
+
+    private fun httpPickCharset(contentType: String): Charset {
+        val m = Regex("charset=([\\w-]+)", RegexOption.IGNORE_CASE).find(contentType)
+        val name = m?.groupValues?.get(1)?.lowercase() ?: ""
+        if (name == "gbk" || name == "gb2312" || name == "gb18030") return Charset.forName("GB18030")
+        if (name.isEmpty()) return Charsets.UTF_8
+        return runCatching { Charset.forName(name) }.getOrDefault(Charsets.UTF_8)
+    }
+
+    private fun httpRequestTool(body: JSONObject?): JSONObject {
+        val urlStr = (body?.optString("url") ?: "").trim()
+        if ((!urlStr.startsWith("http://") && !urlStr.startsWith("https://")) || urlStr.length > 2000) {
+            throw LocalApiError(400, "url 非法（仅支持 http/https）")
+        }
+        val method = ((body?.optString("method") ?: "GET").ifEmpty { "GET" }).uppercase()
+        if (method !in HTTP_METHODS) throw LocalApiError(400, "method 不支持：$method")
+        val timeoutMs = (body?.optLong("timeout_ms") ?: 20000L).coerceIn(1000L, 60000L)
+        val maxBytes = (body?.optLong("max_bytes") ?: (512L * 1024)).coerceIn(1024L, 5L * 1024 * 1024).toInt()
+        val wantB64 = body?.optString("encoding") == "base64"
+        val userHeaders = body?.optJSONObject("headers")
+        val hopByHop = Regex("^(host|content-length|connection|transfer-encoding|upgrade)$", RegexOption.IGNORE_CASE)
+        val hasBody = method in listOf("POST", "PUT", "PATCH", "DELETE") && body != null && body.has("body") && !body.isNull("body")
+        val bodyStr = if (hasBody) body.optString("body") else null
+
+        var current = urlStr
+        var redirects = 0
+        var code = 0
+        var ctype = ""
+        var payload = ByteArray(0)
+        var truncated = false
+        while (true) {
+            val uri = try {
+                java.net.URI(current)
+            } catch (_: Exception) {
+                throw LocalApiError(400, "url 解析失败：$current")
+            }
+            val host = uri.host ?: throw LocalApiError(400, "url 解析失败：$current")
+            if (httpPrivateHost(host)) throw LocalApiError(400, "拒绝访问内网地址：$host")
+            val conn = java.net.URL(current).openConnection() as java.net.HttpURLConnection
+            try {
+                conn.instanceFollowRedirects = false
+                conn.requestMethod = method
+                conn.connectTimeout = timeoutMs.toInt()
+                conn.readTimeout = timeoutMs.toInt()
+                if (userHeaders != null) {
+                    val keys = userHeaders.keys().asSequence().take(30).toList()
+                    for (k in keys) {
+                        val name = k.replace(Regex("[^\\x21-\\x7e]"), "")
+                        val value = userHeaders.optString(k).replace(Regex("[\\r\\n]"), "").take(4000)
+                        if (name.isEmpty() || hopByHop.containsMatchIn(name)) continue   // 逐跳头由 HttpURLConnection 自己管理
+                        conn.setRequestProperty(name, value)
+                    }
+                }
+                if (bodyStr != null) {
+                    conn.doOutput = true
+                    if (conn.getRequestProperty("Content-Type").isNullOrEmpty()) {
+                        conn.setRequestProperty("Content-Type", "text/plain; charset=utf-8")
+                    }
+                    conn.outputStream.use { it.write(bodyStr.toByteArray(Charsets.UTF_8)); it.flush() }
+                }
+                code = conn.responseCode
+                ctype = conn.getHeaderField("Content-Type") ?: ""
+                val loc = conn.getHeaderField("Location")
+                if (code in 300..399 && !loc.isNullOrEmpty()) {
+                    if (++redirects > 5) throw LocalApiError(508, "重定向次数超限（>5）")
+                    current = uri.resolve(loc).toString()
+                    continue
+                }
+                val input = if (code >= 400) conn.errorStream else conn.inputStream
+                if (input != null) {
+                    val chunks = java.io.ByteArrayOutputStream()
+                    val buf = ByteArray(8192)
+                    var total = 0
+                    input.use { src ->
+                        while (true) {
+                            val n = src.read(buf)
+                            if (n < 0) break
+                            chunks.write(buf, 0, n)
+                            total += n
+                            if (total >= maxBytes) {
+                                truncated = true
+                                break
+                            }
+                        }
+                    }
+                    payload = chunks.toByteArray()
+                }
+            } catch (e: LocalApiError) {
+                throw e
+            } catch (e: java.io.IOException) {
+                throw LocalApiError(502, "请求失败：${e.message ?: e}")
+            } finally {
+                conn.disconnect()
+            }
+            break
+        }
+
+        // 解码：先按字符集转文本；非文本类响应（或含 NUL 的明显二进制）按需回退 base64
+        val textPlain = String(payload, httpPickCharset(ctype))
+        val looksText = Regex("^text/", RegexOption.IGNORE_CASE).containsMatchIn(ctype) ||
+            Regex("json|xml|javascript|html", RegexOption.IGNORE_CASE).containsMatchIn(ctype)
+        val isBinary = textPlain.indexOf('\u0000') > -1 || (!looksText && wantB64)
+        val outObj = JSONObject()
+            .put("status", code)
+            .put("content_type", ctype)
+            .put("size", payload.size)
+            .put("truncated", truncated)
+            .put("final_url", current)
+        if (isBinary) {
+            outObj.put("encoding", "base64").put("text", android.util.Base64.encodeToString(payload, android.util.Base64.NO_WRAP))
+        } else {
+            outObj.put("encoding", "text").put("text", textPlain)
+        }
+        return outObj
     }
 
     private fun proxyAi(req: Req, out: OutputStream) {

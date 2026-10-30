@@ -1,6 +1,6 @@
 {
   "name": "git-notes",
-  "version": "0.6.6",
+  "version": "0.6.7",
   "description": "Git笔记：本地 git 仓库架构的微笔记信息流，支持仅本机使用与绑定任意远端 git 服务器同步",
   "bin": {
     "git-notes": "bin/git-notes.js"

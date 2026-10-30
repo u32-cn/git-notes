@@ -572,7 +572,8 @@ var AI_TOOL_LABEL = {
   fs_move: '移动/重命名', fs_mkdir: '建目录',
   git_status: '查工作区状态', git_add: '暂存文件', git_commit: '提交',
   git_push: '推送', git_pull: '拉取整合', git_diff: '查差异',
-  git_branch: '分支列表', git_restore_files: '恢复文件'
+  git_branch: '分支列表', git_restore_files: '恢复文件',
+  http_request: '发起 HTTP 请求', web_fetch: '读取网页正文'
 };
 function aiTool(name, desc, props, req) {
   return { type: 'function', function: { name: name, description: desc, parameters: { type: 'object', properties: props, required: req || [] } } };
@@ -656,18 +657,33 @@ var AI_TOOLS = [
   aiTool('git_restore_files', '把指定路径恢复到某次提交时点（恢复到工作区并暂存，不自动提交；确认后用 git_commit 提交）。可找回被删文件。', {
     commit: { type: 'string', description: '提交 hash' },
     paths: { type: 'array', items: { type: 'string' }, description: '要恢复的路径清单，最多 200 个' }
-  }, ['commit', 'paths'])
+  }, ['commit', 'paths']),
+  /* ===== 网络组（请求经本地服务端转发，无 CORS 限制；服务端拒绝内网地址） ===== */
+  aiTool('http_request', '发起任意 HTTP 请求（GET/HEAD/POST/PUT/PATCH/DELETE/OPTIONS），返回状态码、Content-Type 与响应正文（超长截断）。可用于调用任意 REST API（如 Gitee API：GET https://gitee.com/api/v5/user/keys?access_token=xxx）。GET/HEAD/OPTIONS 直接执行，其余方法需用户确认。', {
+    url: { type: 'string', description: '完整 URL，http/https' },
+    method: { type: 'string', description: 'HTTP 方法，默认 GET' },
+    headers: { type: 'object', description: '请求头键值对（如 Authorization）；host/content-length 等逐跳头会被忽略' },
+    body: { type: 'string', description: '请求体（POST/PUT/PATCH/DELETE 时生效）；JSON 请自行 stringify' },
+    timeout_ms: { type: 'number', description: '超时毫秒，默认 20000，上限 60000' },
+    max_bytes: { type: 'number', description: '响应截断字节数，默认 512KB，上限 5MB' },
+    encoding: { type: 'string', description: 'base64=以 base64 返回（二进制响应自动启用）' }
+  }, ['url']),
+  aiTool('web_fetch', '读取网页并提取正文文本（去脚本/导航/页脚，保留链接为「文字 (URL)」）。仅静态 HTML——SPA/懒加载页可能取不到内容，可改用 http_request 拿原始响应。', {
+    url: { type: 'string', description: '网页 URL，http/https' },
+    max_length: { type: 'number', description: '返回正文的最多字符数，默认 8000' }
+  }, ['url'])
 ];
 function aiToolsForMode(mode) {
   if (mode !== 'ro') return AI_TOOLS;
   return AI_TOOLS.filter(function (t) {
-    return ['set_filter', 'search_notes', 'read_notes', 'git_history', 'read_note_at', 'fs_list', 'fs_read', 'git_status', 'git_diff'].indexOf(t.function.name) > -1;
+    return ['set_filter', 'search_notes', 'read_notes', 'git_history', 'read_note_at', 'fs_list', 'fs_read', 'git_status', 'git_diff', 'web_fetch'].indexOf(t.function.name) > -1;
   });
 }
 function aiNeedGate(name) {
   return ['create_notes', 'update_notes', 'delete_notes', 'restore_note',
     'fs_write', 'fs_delete', 'fs_move', 'fs_mkdir',
-    'git_add', 'git_commit', 'git_push', 'git_pull', 'git_restore_files'].indexOf(name) > -1
+    'git_add', 'git_commit', 'git_push', 'git_pull', 'git_restore_files',
+    'http_request'].indexOf(name) > -1
 }
 var aiGrants = {};   /* 会话内「不再询问」豁免：toolName -> true */
 var aiSeen = {};     /* path -> 完整 post（引用卡片全文用；截断只影响给模型的文本） */
@@ -993,6 +1009,69 @@ function tGitRestoreFiles(a) {
     });
   });
 }
+/* ===== 网络组执行器：HTTP 由本地服务端转发（无 CORS、拒内网），网页正文抽取在浏览器端用 DOMParser 完成 ===== */
+function tHttpRequest(a) {
+  var url = String(a.url || '').trim();
+  if (!/^https?:\/\//i.test(url)) return Promise.resolve('错误：url 必须以 http(s):// 开头');
+  var method = String(a.method || 'GET').toUpperCase();
+  var doReq = function () {
+    return api('POST', '/http/request', {
+      url: url, method: method,
+      headers: (a.headers && typeof a.headers === 'object' && !Array.isArray(a.headers)) ? a.headers : {},
+      body: a.body != null ? String(a.body) : undefined,
+      timeout_ms: a.timeout_ms, max_bytes: a.max_bytes, encoding: a.encoding
+    }).then(function (r) {
+      var head = 'HTTP ' + r.status + ' | ' + (r.content_type || '无 Content-Type') + ' | ' + r.size + ' 字节' + (r.truncated ? '（已截断）' : '') + (r.final_url && r.final_url !== url ? ' | 重定向至 ' + r.final_url : '');
+      var text = r.encoding === 'base64'
+        ? '（二进制响应，base64 共 ' + r.size + ' 字节，此处略——如需内容请改用文本类接口）'
+        : aiClip(String(r.text || ''), 12000);
+      return head + '\n' + text;
+    }, function (e) {
+      return '请求失败：' + ((e && e.message) || e);
+    });
+  };
+  if (['GET', 'HEAD', 'OPTIONS'].indexOf(method) > -1) return doReq();
+  return aiGate('http_request', [method + ' ' + url], 1).then(function (ok) {
+    return ok ? doReq() : '用户拒绝了本次请求。';
+  });
+}
+function aiResolveUrl(href, base) {
+  try { return new URL(href, base).href; } catch (_) { return href; }
+}
+function tWebFetch(a) {
+  var url = String(a.url || '').trim();
+  if (!/^https?:\/\//i.test(url)) return Promise.resolve('错误：url 必须以 http(s):// 开头');
+  var maxLen = Math.min(Math.max(Number(a.max_length) || 8000, 200), 30000);
+  return api('POST', '/http/request', { url: url, method: 'GET', max_bytes: 1048576, timeout_ms: 20000 }).then(function (r) {
+    if (r.status >= 400) return 'HTTP ' + r.status + '，无法读取该网页' + (r.final_url && r.final_url !== url ? '（重定向至 ' + r.final_url + '）' : '');
+    var html = String(r.text || '');
+    if (!/<[a-z!/]/i.test(html)) return html ? aiClip(html, maxLen) : '（响应为空）';
+    var doc = new DOMParser().parseFromString(html, 'text/html');
+    doc.querySelectorAll('script,style,noscript,svg,iframe,canvas,template,form,button,input,select,textarea,nav,header,footer,aside').forEach(function (el) { el.remove(); });
+    var main = doc.querySelector('article') || doc.querySelector('main') || doc.body;
+    if (!main) return '（页面无正文）';
+    var base = r.final_url || url;
+    var baseEl = doc.querySelector('base[href]');
+    if (baseEl) base = aiResolveUrl(baseEl.getAttribute('href'), base);
+    main.querySelectorAll('a[href]').forEach(function (el) {
+      var abs = aiResolveUrl(el.getAttribute('href') || '', base);
+      if (/^https?:\/\//.test(abs) && el.textContent.trim()) el.appendChild(document.createTextNode(' (' + abs + ')'));
+    });
+    /* 块级元素后补换行，保住段落结构 */
+    main.querySelectorAll('br,p,div,li,tr,h1,h2,h3,h4,h5,h6,blockquote,pre,section,td,th,figure').forEach(function (el) {
+      el.appendChild(document.createTextNode('\n'));
+    });
+    var text = String(main.textContent || '').replace(/[ \t\u00a0]+/g, ' ').replace(/ ?\n ?/g, '\n').replace(/\n{3,}/g, '\n\n').trim();
+    if (text.length < 100) {   /* 正文抽取过少（SPA 等）：回退全页文本 */
+      var full = doc.body ? String(doc.body.textContent || '').replace(/[ \t\u00a0]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim() : '';
+      if (full.length > text.length) text = full;
+    }
+    if (!text) return '（页面无正文）';
+    return 'HTTP ' + r.status + ' | ' + base + '\n' + aiClip(text, maxLen);
+  }, function (e) {
+    return '读取失败：' + ((e && e.message) || e);
+  });
+}
 var AI_EXEC = {
   set_filter: tSetFilter, search_notes: tSearch, read_notes: tRead,
   create_notes: tCreate, update_notes: tUpdate, delete_notes: tDelete,
@@ -1001,7 +1080,8 @@ var AI_EXEC = {
   fs_move: tFsMove, fs_mkdir: tFsMkdir,
   git_status: tGitStatus, git_add: tGitAdd, git_commit: tGitCommit,
   git_push: tGitPush, git_pull: tGitPull, git_diff: tGitDiff,
-  git_branch: tGitBranch, git_restore_files: tGitRestoreFiles
+  git_branch: tGitBranch, git_restore_files: tGitRestoreFiles,
+  http_request: tHttpRequest, web_fetch: tWebFetch
 };
 function aiExecTool(name, args) {
   var fn = AI_EXEC[name];
