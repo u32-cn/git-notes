@@ -11,6 +11,23 @@
 - **仅本机使用**：`git init` 本地仓库，零配置零依赖（只需 git），数据只在 `~/.git-notes/repo`
 - **绑定远端**：任意 git 服务器（SSH/HTTPS/本地路径均可，地址自己填），自动 `fetch + rebase/merge + push` 多设备同步
 
+## 应用截图
+
+<img src="docs/screenshots/screenshot-win-main.png" alt="Windows 桌面版" width="100%" />
+
+*Windows 桌面版：信息流 + AI 助手侧栏*
+
+<table>
+<tr>
+<td width="25%" align="center"><img src="docs/screenshots/screenshot-android-feed.jpg" alt="Android 信息流" /><br><b>信息流</b></td>
+<td width="25%" align="center"><img src="docs/screenshots/screenshot-android-ai.jpg" alt="Android AI 助手" /><br><b>AI 助手</b></td>
+<td width="25%" align="center"><img src="docs/screenshots/screenshot-android-settings.jpg" alt="Android 设置" /><br><b>同步设置</b></td>
+<td width="25%" align="center"><img src="docs/screenshots/screenshot-android-help.jpg" alt="Android 帮助" /><br><b>帮助页</b></td>
+</tr>
+</table>
+
+*Android（APK 与桌面版同一套界面，多端同步）*
+
 数据格式沿用 `micro/YYYY/MM/YYYYMMDD-HHMMSS.md`（front matter: type/tags/created/images/files）与 `settings/tags.json`，commit 规范 `micro: add|update|delete <摘要>` / `settings: add|remove tag <名>`。支持配图（≤9 张）与**任意附件**（单个 ≤10MB、每帖 ≤9 个，原始文件名保留在 `files:` 字段；附件经 `/media/` 一律以下载形式给出）。
 
 ## 特点
