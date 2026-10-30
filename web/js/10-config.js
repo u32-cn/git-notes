@@ -7,6 +7,12 @@ var MAX_IMAGES = 9;
 var MAX_FILES = 9;
 /* 长笔记折叠阈值（行数） */
 var FOLD_LINES = 10;
+/* ================= 应用自身信息（单一事实源；版本号不在此存，运行时取 /assets/version.json） ================= */
+var APP_META = {
+  name: 'Git笔记',
+  homepage: 'https://git-notes.u32.cn',
+  github: 'https://github.com/u32-cn/git-notes'
+};
 
 /* ================= 状态 ================= */
 var state = {

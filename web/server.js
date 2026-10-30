@@ -1584,6 +1584,7 @@ async function route(req, res) {
       let out = null;
       if (urlPath === '/api/status') {
         out = {
+          version: VERSION,
           stage: stage(),
           platform: process.platform,
           remote: config.remote || '',

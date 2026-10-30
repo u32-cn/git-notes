@@ -684,10 +684,12 @@ var AI_TOOLS = [
 function aiToolsForMode(mode) {
   if (mode !== 'ro') return AI_TOOLS;
   return AI_TOOLS.filter(function (t) {
+    if (typeof AI_RO_TOOLS !== 'undefined' && AI_RO_TOOLS.indexOf(t.function.name) > -1) return true;
     return ['set_filter', 'search_notes', 'read_notes', 'git_history', 'read_note_at', 'fs_list', 'fs_read', 'git_status', 'git_diff', 'web_fetch', 'web_search'].indexOf(t.function.name) > -1;
   });
 }
 function aiNeedGate(name) {
+  if (typeof AI_GATE_TOOLS !== 'undefined' && AI_GATE_TOOLS.indexOf(name) > -1) return true;
   return ['create_notes', 'update_notes', 'delete_notes', 'restore_note',
     'fs_write', 'fs_delete', 'fs_move', 'fs_mkdir',
     'git_add', 'git_commit', 'git_push', 'git_pull', 'git_restore_files',
@@ -1268,7 +1270,7 @@ function aiSystemPrompt() {
   seenTags().forEach(function (t) { if (known.indexOf(t) === -1) known.push(t); });
   var filt = '标签:' + (state.filter || '无') + ' | 时间:' + (state.timeRange ? ((state.timeRange.from || '最早') + '~' + (state.timeRange.to || '今天')) : '不限') + ' | 搜索:' + (state.query || '无');
   var modeDesc = { ro: '只读模式：你没有写入类工具，只能筛选、检索与回答。', confirm: '确认模式：你的写入/删除/恢复操作会先展示确认卡片，由用户放行后才执行。', auto: '自动模式：写操作会直接执行（删除超过 5 篇仍需用户确认），请格外谨慎。' }[aiMode()];
-  return '你是本地微笔记应用「Git笔记」的助手，帮用户筛选信息流、检索与整理笔记。\n'
+  return '你是本地微笔记应用「Git笔记」（官网 ' + APP_META.homepage + '，开源 ' + APP_META.github + '）内置的 AI 助手，帮用户筛选信息流、检索与整理笔记。\n'
     + '今天是 ' + ds + ' 星期' + '日一二三四五六'.charAt(now.getDay()) + '（用户本地时区）。「今天/昨天/去年/上月」等相对时间全部以此推算。\n'
     + '可用标签清单：[' + known.join('、') + ']。用户提到的标签尽量对齐清单；清单里没有的标签不要编造，如实说明即可。\n'
     + '当前生效筛选：' + filt + '。\n'
@@ -1278,6 +1280,8 @@ function aiSystemPrompt() {
     + '- 检索词支持拼音与首字母（如搬家→banjia/bj），一次效果不佳可换词重搜。\n'
     + '- 创建/修改笔记保持用户原有文风；删除是危险操作，仅在用户明确要求时执行，且先 search_notes/read_notes 核对再删。\n'
     + '- set_filter 直接改变用户屏幕上的信息流，用户可见可撤销；用户说「看去年的X」这类诉求时用它。\n'
+    + '- 关于应用自身（版本/官网/源码/SSH 密钥/字号/主题/标签清单等），先用 app_info 及相应工具查询，不要凭空回答。\n'
+    + '- 你不能做的事（被问到时如实说明并引导用户到设置页手动操作）：修改你自己的模型/API Key/权限模式、绑定或解绑远端仓库、强制推送、导出私钥、触发应用更新。\n'
     + '- 当前权限模式：' + modeDesc;
 }
 function aiHistMessages() {

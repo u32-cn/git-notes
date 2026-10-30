@@ -217,7 +217,7 @@ const SHOT = 'S:/vtxf/vtxf-work/projects/vtxf/git-notes/web/gui-regression/';
     await page.$eval('#btn-nav-set', el => el.click());
     await wait(() => document.querySelector('#view-set').classList.contains('on'));
     const baseVal = await page.$eval('#ai-base', el => el.value);
-    const modeVal = await page.$eval('#ai-mode', el => el.value);
+    const modeVal = await page.$eval('[data-ai-mode].on', el => el.getAttribute('data-ai-mode'));
     assert('设置页 AI 块回显配置', baseVal === MOCK && modeVal === 'confirm');
     await page.screenshot({ path: SHOT + 'ai-settings-1440.png' });
 

@@ -83,6 +83,7 @@ async function route(method, pathname, query, body) {
   let out = null;
   if (pathname === '/api/status') {
     out = {
+      version: VERSION,
       stage: git.stage(),
       platform: process.platform,
       remote: store.getConfig().remote || '',
