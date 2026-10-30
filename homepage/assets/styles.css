@@ -280,6 +280,20 @@ main, .nav, .foot { position: relative; z-index: 1; }
 .fn p { margin: 8px 0 0; color: var(--ink-2); font-size: 14.5px; line-height: 1.8; }
 .fn p code { padding: 1px 5px; border-radius: 4px; background: var(--bg-2); font-size: .88em; }
 
+/* ============ 界面截图 ============ */
+.shots { max-width: 1120px; margin: 128px auto 0; padding: 0 32px; }
+.shot-wide { margin: 44px 0 0; }
+.shot-wide img, .shot-item img {
+  display: block; width: 100%; height: auto; background: var(--bg-2);
+  border: 1px solid var(--line-2); border-radius: var(--radius);
+  box-shadow: 0 24px 56px -32px rgba(20, 30, 50, .4);
+}
+.shot-wide figcaption, .shot-item figcaption { margin-top: 10px; color: var(--ink-3); font-size: 12.5px; text-align: center; }
+.shot-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 28px; }
+@media (max-width: 900px) {
+  .shot-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+}
+
 /* ============ 快速上手 ============ */
 .start { max-width: 1120px; margin: 128px auto 0; padding: 0 32px; }
 .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
