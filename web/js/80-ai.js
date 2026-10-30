@@ -573,7 +573,7 @@ var AI_TOOL_LABEL = {
   git_status: '查工作区状态', git_add: '暂存文件', git_commit: '提交',
   git_push: '推送', git_pull: '拉取整合', git_diff: '查差异',
   git_branch: '分支列表', git_restore_files: '恢复文件',
-  http_request: '发起 HTTP 请求', web_fetch: '读取网页正文'
+  http_request: '发起 HTTP 请求', web_fetch: '读取网页正文', web_search: '联网搜索'
 };
 function aiTool(name, desc, props, req) {
   return { type: 'function', function: { name: name, description: desc, parameters: { type: 'object', properties: props, required: req || [] } } };
@@ -671,12 +671,20 @@ var AI_TOOLS = [
   aiTool('web_fetch', '读取网页并提取正文文本（去脚本/导航/页脚，保留链接为「文字 (URL)」）。仅静态 HTML——SPA/懒加载页可能取不到内容，可改用 http_request 拿原始响应。', {
     url: { type: 'string', description: '网页 URL，http/https' },
     max_length: { type: 'number', description: '返回正文的最多字符数，默认 8000' }
-  }, ['url'])
+  }, ['url']),
+  aiTool('web_search', '联网搜索（Firecrawl 搜索引擎），返回标题、URL 与摘要列表，需要内容详情时再用 web_fetch 读具体 URL。默认匿名免费调用（有日配额）；配额用尽时按返回提示引导用户提供 API Key。', {
+    query: { type: 'string', description: '搜索词' },
+    limit: { type: 'number', description: '结果条数，默认 5，上限 10' },
+    lang: { type: 'string', description: '结果语言偏好，如 zh / en' },
+    country: { type: 'string', description: '国家偏好，如 cn / us' },
+    tbs: { type: 'string', description: '时间过滤（Google tbs 语法），如 qdr:d=近一天、qdr:w=近一周、qdr:m=近一月' },
+    api_key: { type: 'string', description: 'Firecrawl API Key（仅配额不足且用户提供后传入）' }
+  }, ['query'])
 ];
 function aiToolsForMode(mode) {
   if (mode !== 'ro') return AI_TOOLS;
   return AI_TOOLS.filter(function (t) {
-    return ['set_filter', 'search_notes', 'read_notes', 'git_history', 'read_note_at', 'fs_list', 'fs_read', 'git_status', 'git_diff', 'web_fetch'].indexOf(t.function.name) > -1;
+    return ['set_filter', 'search_notes', 'read_notes', 'git_history', 'read_note_at', 'fs_list', 'fs_read', 'git_status', 'git_diff', 'web_fetch', 'web_search'].indexOf(t.function.name) > -1;
   });
 }
 function aiNeedGate(name) {
@@ -1072,6 +1080,26 @@ function tWebFetch(a) {
     return '读取失败：' + ((e && e.message) || e);
   });
 }
+function tWebSearch(a) {
+  var q = String(a.query || '').trim();
+  if (!q) return Promise.resolve('错误：query 不能为空');
+  return api('POST', '/web/search', {
+    query: q, limit: a.limit, lang: a.lang, country: a.country, tbs: a.tbs, api_key: a.api_key
+  }).then(function (r) {
+    if (!r.ok) {
+      if (r.quota_exceeded) return '匿名搜索日配额已用尽。请引导用户到 https://www.firecrawl.dev 免费注册并在后台创建 API Key（申请页：https://www.firecrawl.dev/app/api-keys），拿到 Key 后用 api_key 参数重试本次搜索；配额每日重置，也可次日再试。';
+      return '搜索失败：' + (r.error || '未知错误');
+    }
+    var rs = r.results || [];
+    if (!rs.length) return '没有搜索结果，可尝试更换或精简关键词。';
+    var lines = rs.map(function (x, i) {
+      return (i + 1) + '. ' + String(x.title || '(无标题)') + '\n   ' + x.url + '\n   ' + aiClip(String(x.description || '').replace(/\s+/g, ' '), 200);
+    });
+    return '搜索「' + q + '」命中 ' + rs.length + ' 条（' + (r.auth === 'api-key' ? 'API Key' : '匿名免费') + '）：\n' + lines.join('\n') + '\n需要正文内容时用 web_fetch 读取对应 URL。';
+  }, function (e) {
+    return '搜索失败：' + ((e && e.message) || e);
+  });
+}
 var AI_EXEC = {
   set_filter: tSetFilter, search_notes: tSearch, read_notes: tRead,
   create_notes: tCreate, update_notes: tUpdate, delete_notes: tDelete,
@@ -1081,7 +1109,7 @@ var AI_EXEC = {
   git_status: tGitStatus, git_add: tGitAdd, git_commit: tGitCommit,
   git_push: tGitPush, git_pull: tGitPull, git_diff: tGitDiff,
   git_branch: tGitBranch, git_restore_files: tGitRestoreFiles,
-  http_request: tHttpRequest, web_fetch: tWebFetch
+  http_request: tHttpRequest, web_fetch: tWebFetch, web_search: tWebSearch
 };
 function aiExecTool(name, args) {
   var fn = AI_EXEC[name];

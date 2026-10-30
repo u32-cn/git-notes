@@ -1406,6 +1406,56 @@ async function httpRequestTool(body) {
   };
 }
 
+/* ================= 联网搜索端点（AI 工具 web_search 的服务端执行器） =================
+   转发 Firecrawl Search API（https://api.firecrawl.dev/v2/search，对齐 vtxf-firecrawl-search 技能）。
+   默认匿名（keyless）调用，免费但有日配额；前端传入 api_key 时附 Bearer 头提升配额。
+   本端点恒返回 200 JSON：{ ok:true, auth, results } 或 { ok:false, quota_exceeded, error }，
+   由前端把配额问题转述为「引导用户提供 API Key」的话术。 */
+
+const FIRECRAWL_SEARCH_URL = 'https://api.firecrawl.dev/v2/search';
+const FIRECRAWL_KEY_URL = 'https://www.firecrawl.dev';
+
+async function webSearchTool(body) {
+  const q = String((body && body.query) || '').trim();
+  if (!q || q.length > 500) return { ok: false, quota_exceeded: false, error: 'query 必填且不超过 500 字符' };
+  const reqBody = { query: q, limit: Math.min(Math.max(Number(body && body.limit) || 5, 1), 10) };
+  ['lang', 'country', 'tbs'].forEach((k) => {
+    const v = String((body && body[k]) || '').trim();
+    if (v) reqBody[k] = v.slice(0, 20);
+  });
+  const key = String((body && body.api_key) || '').trim().slice(0, 200);
+  const headers = { 'Content-Type': 'application/json' };
+  if (key) headers.Authorization = 'Bearer ' + key;
+
+  let res;
+  try {
+    res = await fetch(FIRECRAWL_SEARCH_URL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(reqBody),
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch (e) {
+    return { ok: false, quota_exceeded: false, error: '搜索服务连接失败：' + ((e && e.message) || e) };
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const quota = res.status === 402 || res.status === 429;
+    return {
+      ok: false,
+      quota_exceeded: quota,
+      key_url: FIRECRAWL_KEY_URL,
+      error: quota ? '搜索配额不足（HTTP ' + res.status + '）' : '搜索失败：HTTP ' + res.status + (data && data.error ? '：' + data.error : ''),
+    };
+  }
+  const web = (data && data.data && data.data.web) || [];
+  return {
+    ok: true,
+    auth: key ? 'api-key' : 'keyless',
+    results: web.slice(0, 10).map((r) => ({ url: String(r.url || ''), title: String(r.title || ''), description: String(r.description || '') })),
+  };
+}
+
 /* ================= HTTP 服务 ================= */
 
 /* CSP：前端已拆分为 /assets/app.css 与 /js/*.js，脚本样式放行同源（self）。
@@ -1627,6 +1677,8 @@ async function route(req, res) {
         out = await aiProviders();
       } else if (urlPath === '/api/http/request' && req.method === 'POST') {
         out = await httpRequestTool(body);
+      } else if (urlPath === '/api/web/search' && req.method === 'POST') {
+        out = await webSearchTool(body);
       } else if (urlPath === '/api/fs/list' && req.method === 'GET') {
         out = fsList(query.get('path') || '');
       } else if (urlPath === '/api/fs/read' && req.method === 'GET') {

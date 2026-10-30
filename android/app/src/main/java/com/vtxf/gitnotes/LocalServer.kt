@@ -32,7 +32,7 @@ import org.json.JSONObject
  * - /healthz → {"ok":true,"version":...,"pid":...}
  * - /media/micro/... → 仓库配图直出（cookie 鉴权 + 路径白名单）
  * - /api/status | setup/local | setup/key(+rotate) | setup/clone | bind 系五端点 | unbind | sync |
- *   force-push | posts(GET/POST/PUT/DELETE) | tags | search | git 历史三端点(log/show/restore) | repo/open(移动端返回不支持) | http/request(AI 通用 HTTP) → 本地 GitRepo（JGit）
+ *   force-push | posts(GET/POST/PUT/DELETE) | tags | search | git 历史三端点(log/show/restore) | repo/open(移动端返回不支持) | http/request(AI 通用 HTTP) | web/search(AI 联网搜索) → 本地 GitRepo（JGit）
  *
  * 安全红线：只绑回环；Host 校验防 DNS rebinding；cookie（SameSite=Lax）+ 随机令牌防跨站；
  * 日志不打印请求头、cookie 与查询串。
@@ -444,6 +444,9 @@ class LocalServer(private val context: Context) {
 
             // 通用 HTTP 请求端点（AI 工具 http_request / web_fetch 的服务端执行器，对齐 web/server.js）
             path == "/api/http/request" && req.method == "POST" -> httpRequestTool(body)
+
+            // 联网搜索端点（AI 工具 web_search 的服务端执行器，Firecrawl 匿名/key 均可，对齐 web/server.js）
+            path == "/api/web/search" && req.method == "POST" -> webSearchTool(body)
 
             path == "/api/ai/settings" && req.method == "POST" -> {
                 if (repo.syncState.busy || repo.writeBusy) throw LocalApiError(409, "已有写操作进行中，请稍候")
@@ -941,6 +944,61 @@ class LocalServer(private val context: Context) {
             outObj.put("encoding", "text").put("text", textPlain)
         }
         return outObj
+    }
+
+    // ================= 联网搜索端点（AI 工具 web_search 的服务端执行器） =================
+    // 对齐 web/server.js webSearchTool（改动需手工同步三端）：转发 Firecrawl Search API，
+    // 默认匿名（keyless），api_key 时附 Bearer 头；恒返回 200 JSON：
+    // { ok:true, auth, results } 或 { ok:false, quota_exceeded, error }（402/429 判为配额不足）。
+
+    private fun webSearchTool(body: JSONObject?): JSONObject {
+        val q = (body?.optString("query") ?: "").trim()
+        if (q.isEmpty() || q.length > 500) {
+            return JSONObject().put("ok", false).put("quota_exceeded", false).put("error", "query 必填且不超过 500 字符")
+        }
+        val req = JSONObject().put("query", q).put("limit", ((body?.optInt("limit") ?: 5).coerceIn(1, 10)))
+        for (k in listOf("lang", "country", "tbs")) {
+            val v = (body?.optString(k) ?: "").trim()
+            if (v.isNotEmpty()) req.put(k, v.take(20))
+        }
+        val key = (body?.optString("api_key") ?: "").trim().take(200)
+        val conn = java.net.URL("https://api.firecrawl.dev/v2/search").openConnection() as java.net.HttpURLConnection
+        try {
+            conn.requestMethod = "POST"
+            conn.connectTimeout = 30000
+            conn.readTimeout = 60000
+            conn.doOutput = true
+            conn.setRequestProperty("Content-Type", "application/json")
+            if (key.isNotEmpty()) conn.setRequestProperty("Authorization", "Bearer $key")
+            conn.outputStream.use { it.write(req.toString().toByteArray(Charsets.UTF_8)); it.flush() }
+            val code = conn.responseCode
+            val stream = if (code >= 400) conn.errorStream else conn.inputStream
+            val text = stream?.readBytes()?.toString(Charsets.UTF_8) ?: ""
+            val data = try { JSONObject(text) } catch (_: Exception) { JSONObject() }
+            if (code >= 400) {
+                val quota = code == 402 || code == 429
+                val errDetail = data.optString("error")
+                return JSONObject()
+                    .put("ok", false)
+                    .put("quota_exceeded", quota)
+                    .put("key_url", "https://www.firecrawl.dev")
+                    .put("error", if (quota) "搜索配额不足（HTTP $code）" else "搜索失败：HTTP $code${if (errDetail.isNotEmpty()) "：$errDetail" else ""}")
+            }
+            val web = data.optJSONObject("data")?.optJSONArray("web") ?: JSONArray()
+            val results = JSONArray()
+            for (i in 0 until web.length().coerceAtMost(10)) {
+                val r = web.optJSONObject(i) ?: continue
+                results.put(JSONObject().put("url", r.optString("url")).put("title", r.optString("title")).put("description", r.optString("description")))
+            }
+            return JSONObject()
+                .put("ok", true)
+                .put("auth", if (key.isEmpty()) "keyless" else "api-key")
+                .put("results", results)
+        } catch (e: java.io.IOException) {
+            throw LocalApiError(502, "搜索服务连接失败：${e.message ?: e}")
+        } finally {
+            conn.disconnect()
+        }
     }
 
     private fun proxyAi(req: Req, out: OutputStream) {

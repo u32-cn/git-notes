@@ -181,6 +181,8 @@ async function route(method, pathname, query, body) {
     out = await aiProviders();
   } else if (pathname === '/api/http/request' && method === 'POST') {
     out = await httpRequestTool(body);
+  } else if (pathname === '/api/web/search' && method === 'POST') {
+    out = await webSearchTool(body);
   } else if (pathname === '/api/fs/list' && method === 'GET') {
     out = git.fsList(query.get('path') || '');
   } else if (pathname === '/api/fs/read' && method === 'GET') {
@@ -421,3 +423,52 @@ async function httpRequestTool(body) {
 }
 
 module.exports = { handleApi, handleAiProxy, setOpenRepo, setUpdateInstaller, setUpdateRunner, setUpdateProgress, VERSION, checkUpdate };
+
+/* ================= 联网搜索端点（AI 工具 web_search 的服务端执行器） =================
+   对齐 web/server.js webSearchTool（改动需手工同步两端）：
+   转发 Firecrawl Search API，默认匿名（keyless），api_key 时附 Bearer 头；
+   恒返回 200 JSON：{ ok:true, auth, results } 或 { ok:false, quota_exceeded, error }。 */
+
+const FIRECRAWL_SEARCH_URL = 'https://api.firecrawl.dev/v2/search';
+const FIRECRAWL_KEY_URL = 'https://www.firecrawl.dev';
+
+async function webSearchTool(body) {
+  const q = String((body && body.query) || '').trim();
+  if (!q || q.length > 500) return { ok: false, quota_exceeded: false, error: 'query 必填且不超过 500 字符' };
+  const reqBody = { query: q, limit: Math.min(Math.max(Number(body && body.limit) || 5, 1), 10) };
+  ['lang', 'country', 'tbs'].forEach((k) => {
+    const v = String((body && body[k]) || '').trim();
+    if (v) reqBody[k] = v.slice(0, 20);
+  });
+  const key = String((body && body.api_key) || '').trim().slice(0, 200);
+  const headers = { 'Content-Type': 'application/json' };
+  if (key) headers.Authorization = 'Bearer ' + key;
+
+  let res;
+  try {
+    res = await fetch(FIRECRAWL_SEARCH_URL, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify(reqBody),
+      signal: AbortSignal.timeout(30000),
+    });
+  } catch (e) {
+    return { ok: false, quota_exceeded: false, error: '搜索服务连接失败：' + ((e && e.message) || e) };
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const quota = res.status === 402 || res.status === 429;
+    return {
+      ok: false,
+      quota_exceeded: quota,
+      key_url: FIRECRAWL_KEY_URL,
+      error: quota ? '搜索配额不足（HTTP ' + res.status + '）' : '搜索失败：HTTP ' + res.status + (data && data.error ? '：' + data.error : ''),
+    };
+  }
+  const web = (data && data.data && data.data.web) || [];
+  return {
+    ok: true,
+    auth: key ? 'api-key' : 'keyless',
+    results: web.slice(0, 10).map((r) => ({ url: String(r.url || ''), title: String(r.title || ''), description: String(r.description || '') })),
+  };
+}
