@@ -366,22 +366,33 @@ function aiCiteLabel(path) {
   return d || path.replace(/^micro\//, '').replace(/\.md$/, '');
 }
 
-/* Markdown 白名单渲染：段落/标题/列表/引用/围栏代码/分隔线 + 行内粗斜体与行内代码/链接 */
+/* Markdown 白名单渲染：段落/标题/列表/引用/围栏代码/分隔线 + 行内粗斜体与行内代码/链接。
+   链接（[文字](url) 与裸 URL）统一带 gn-external:// 前缀，走三端外链分发
+   （90-events.js 点击代理 / electron will-navigate / 安卓 shouldOverrideUrlLoading → 系统浏览器） */
 function aiInline(parent, text) {
-  var re = /(`([^`]+)`)|(\*\*([^*]+)\*\*)|(\*([^*\s][^*]*)\*)|(https?:\/\/[^\s]+)/g;
+  var re = /(`([^`]+)`)|(\*\*([^*]+)\*\*)|(\*([^*\s][^*]*)\*)|(\[([^\]]+)\]\((https?:\/\/[^\s)]+)\))|(https?:\/\/[^\s<>"“”‘’\u4e00-\u9fff\u3000-\u303f\uff00-\uffef]+)/g;
   var last = 0, m;
+  function aiLink(u, label) {
+    var a = aiEl('a');
+    a.href = 'gn-external://' + u;
+    a.target = '_blank'; a.rel = 'noopener noreferrer';
+    if (label) {
+      a.textContent = label;
+      parent.appendChild(a);
+      return;
+    }
+    a.textContent = u.replace(/[.,;:!?、。！？…）)]$/, '');
+    parent.appendChild(a);
+    var trail = u.slice(a.textContent.length);
+    if (trail) parent.appendChild(document.createTextNode(trail));
+  }
   while ((m = re.exec(text))) {
     if (m.index > last) parent.appendChild(document.createTextNode(text.slice(last, m.index)));
     if (m[2] !== undefined) { var c = aiEl('code'); c.textContent = m[2]; parent.appendChild(c); }
     else if (m[4] !== undefined) { var b = aiEl('b'); b.textContent = m[4]; parent.appendChild(b); }
     else if (m[6] !== undefined) { var it = aiEl('i'); it.textContent = m[6]; parent.appendChild(it); }
-    else {
-      var a = aiEl('a'); a.href = m[7]; a.target = '_blank'; a.rel = 'noopener noreferrer';
-      a.textContent = m[7].replace(/[.,;:!?、。！？…）)]$/, '');
-      parent.appendChild(a);
-      var trail = m[7].slice(a.textContent.length);
-      if (trail) parent.appendChild(document.createTextNode(trail));
-    }
+    else if (m[9] !== undefined) { aiLink(m[9], m[8]); }
+    else { aiLink(m[10]); }
     last = m.index + m[0].length;
   }
   if (last < text.length) parent.appendChild(document.createTextNode(text.slice(last)));
