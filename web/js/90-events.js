@@ -380,7 +380,7 @@ document.addEventListener('pointerdown', function (ev) {
 }, true);
 $('#composer').addEventListener('focusout', function (ev) {
   /* 焦点离开发布器（且不是移入其内部按钮/最近按点在其内）才收回折叠；宽屏无折叠态无副作用 */
-  if (!wideMq.matches && !this.contains(ev.relatedTarget) && !lastPressInComposer) collapseCompose();
+  if (!this.contains(ev.relatedTarget) && !lastPressInComposer) collapseCompose();
 });
 /* 设置页：新增标签 */
 $('#btn-add-tag').onclick = function () {
