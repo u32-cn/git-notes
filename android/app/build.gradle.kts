@@ -115,7 +115,7 @@ val syncIndexHtml = tasks.register<Copy>("syncIndexHtml") {
 }
 tasks.named("preBuild") { dependsOn(syncIndexHtml) }
 
-// 交付自动化：assembleRelease 完成后自动拷贝 APK 到 ../dist/（交付出口），并打印包内
+// 交付自动化：assembleRelease 完成后自动拷贝 APK 到 android/dist/（交付出口，安卓产物唯一归档处），并打印包内
 // version.json 的 commit 供核验——杜绝"只构建未交付"（曾两次发生：构建产物留在
 // build/outputs，人工忘记拷 dist，装到旧包）。任务名 deliverApk，随 assembleRelease 自动执行。
 val deliverApk = tasks.register("deliverApk") {
@@ -124,14 +124,14 @@ val deliverApk = tasks.register("deliverApk") {
         val src = layout.buildDirectory.file("outputs/apk/release").get().asFile
             .walkTopDown().firstOrNull { it.name.matches(Regex("""git-notes-v[\d.]+\.apk""")) }
             ?: throw GradleException("deliverApk: 未找到 release APK")
-        val dstDir = rootProject.file("../dist").apply { mkdirs() }
+        val dstDir = rootProject.file("dist").apply { mkdirs() }
         val dst = File(dstDir, src.name)
         src.copyTo(dst, overwrite = true)
         val digest = MessageDigest.getInstance("MD5")
             .digest(dst.readBytes()).joinToString("") { "%02x".format(it) }
         logger.lifecycle("[deliverApk] ${src.name} -> ${dst.absolutePath}")
         logger.lifecycle("[deliverApk] md5=$digest  size=${dst.length()}")
-        logger.lifecycle("[deliverApk] 交付完成：请以 dist/ 下该文件为准安装")
+        logger.lifecycle("[deliverApk] 交付完成：请以 android/dist/ 下该文件为准安装")
     }
 }
 tasks.matching { it.name == "assembleRelease" }.configureEach {
