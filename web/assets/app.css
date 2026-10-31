@@ -610,7 +610,7 @@ mark { background: var(--accent-soft); color: var(--accent); border-radius: 3px;
 /* 引导页双岔路卡片 */
 .setup-opts { display: flex; gap: 10px; flex-wrap: wrap; }
 .setup-card {
-  flex: 1 1 40%; min-width: 150px; text-align: left; padding: 12px 14px;
+  flex: 1 1 30%; min-width: 150px; text-align: left; padding: 12px 14px;
   display: flex; flex-direction: column; gap: 5px;
   background: var(--panel-solid);
 }

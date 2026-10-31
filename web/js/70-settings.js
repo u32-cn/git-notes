@@ -332,8 +332,9 @@ function assertSshAddr(remote) {
   if (/^https?:\/\//i.test(remote)) { setupErr('请粘贴 SSH 地址（git@ 开头），不要用 https:// 地址'); return false; }
   return true;
 }
-/* 让 AI 代办绑定：生成含本机公钥的提示词，复制到 workbuddy 等 AI 工具执行（加公钥+建私有空仓），
-   AI 只回一行 SSH 地址，粘贴回来后走统一连接流程（#setup 面板已在底层打开，对话框叠在其上） */
+/* 让 AI 代办绑定（独立入口，不经过手动绑定的三步面板）：弹窗生成含本机公钥的提示词，
+   复制到 workbuddy 等 AI 工具执行（加公钥+建私有空仓），AI 只回一行 SSH 地址；
+   粘贴回来点连接后才打开绑定面板，复用其进度/错误视图走统一连接流程 */
 function aiBindPrompt(pubKey) {
   return '请帮我在 Gitee（若我没有 Gitee 账号则用 GitHub）上完成两件事：\n'
     + '1. 把下面这台设备的 SSH 公钥添加到我账号的「SSH 公钥」设置里：\n'
@@ -342,7 +343,6 @@ function aiBindPrompt(pubKey) {
     + '完成后，只回复一行该仓库的 SSH 地址（格式如 git@gitee.com:用户名/git-notes.git），不要输出其他内容。';
 }
 function aiBindFlow(from) {
-  openSetupBind(from);
   apiSetupKey().then(function (r) {
     var prompt = aiBindPrompt(r.pubKey);
     dlg('让 AI 帮你绑定远端', {
@@ -353,6 +353,7 @@ function aiBindFlow(from) {
       ok: '连 接'
     }).then(function (v) {
       if (!v) return;
+      openSetupBind(from);
       $('#clone-remote').value = v;
       setupConnectFlow();
     });

@@ -237,8 +237,13 @@
         </button>
         <button id="btn-clone-mode" class="setup-card" data-u32-name="btn-clone-mode" type="button">
           <svg class="setup-card-ic" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="15" width="13" height="21" rx="2.5"/><rect x="30" y="10" width="13" height="26" rx="2.5"/><path d="M20 22h8m-2.5-3 2.5 3-2.5 3M28 22l-2.5 3"/></g></svg>
-          <span class="setup-card-t">多端同步</span>
-          <span class="setup-card-d">绑定你自己的 Git 仓库，备份 + 多设备同步。Gitee / GitHub / 自建，约 2 分钟设置。</span>
+          <span class="setup-card-t">手动绑定远端</span>
+          <span class="setup-card-d">自己到 Git 网站加公钥、建仓库，再粘贴地址。Gitee / GitHub / 自建，约 2 分钟设置。</span>
+        </button>
+        <button id="btn-ai-mode" class="setup-card" data-u32-name="btn-ai-mode" type="button">
+          <svg class="setup-card-ic" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M24 8l3.2 9.6a3 3 0 0 0 1.9 1.9L38.7 22.7l-9.6 3.2a3 3 0 0 0-1.9 1.9L24 37.4l-3.2-9.6a3 3 0 0 0-1.9-1.9L9.3 22.7l9.6-3.2a3 3 0 0 0 1.9-1.9Z"/><path d="M38 6v6M41 9h-6"/><path d="M10 34v6M13 37H7"/></g></svg>
+          <span class="setup-card-t">让AI绑定远端</span>
+          <span class="setup-card-d">复制一段提示词到 workbuddy 等 AI 工具，由 AI 代办加公钥、建仓库，把返回的地址粘贴回来即可。</span>
         </button>
       </div>
     </div>
@@ -256,7 +261,7 @@
         </div>
       </div>
       <div class="setup-step">
-        <div class="settings-label" data-u32-name="setup-step2-label">② 去 Git 网站设置（或让 AI 代办）：添加公钥 + 新建仓库</div>
+        <div class="settings-label" data-u32-name="setup-step2-label">② 去 Git 网站设置：添加公钥 + 新建仓库</div>
         <p class="hint" data-u32-name="setup-step2-hint">任选一个你有账号的网站，点链接直达：</p>
         <div class="setup-sites" data-u32-name="setup-sites-gitee">
           <span class="setup-site-name">Gitee</span>
@@ -275,9 +280,6 @@
         </div>
         <p class="setup-warn" data-u32-name="setup-warn">⚠ 仓库必须设置为「私有（Private）」！否则你的笔记对全网公开可见。</p>
         <p class="hint" id="setup-guide" data-u32-name="setup-guide">新建时保持空仓库（不要勾选「初始化 README」）；建好后进入仓库页面，把 SSH 地址复制下来，形如 git@gitee.com:you/notes.git。其他 Git 网站也一样：设置里找「SSH 公钥」，新建仓库后拷 SSH 地址。</p>
-        <div class="dlg-actions" data-u32-name="ai-bind-row" style="justify-content:flex-start;">
-          <button id="btn-ai-bind-guide" data-u32-name="btn-ai-bind-guide" type="button">🤖 让 AI 帮我绑定</button>
-        </div>
       </div>
       <div class="setup-step">
         <div class="settings-label" data-u32-name="setup-step3-label">③ 粘贴仓库地址，连接</div>
