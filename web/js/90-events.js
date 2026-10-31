@@ -469,9 +469,17 @@ $('#btn-copy-pubkey').onclick = function () { copyBox('#pubkey-box'); };
 watchSshKeyHint('#clone-remote', '#pubkey-sec', '#pubkey-box');
 /* 设置页【绑定远端】：打开同一块三步绑定视图（local 态「连接」自动走探测+绑定） */
 $('#btn-bind-remote').onclick = function () { openSetupBind('settings'); };
-/* 让 AI 代办绑定：设置页与首次引导（欢迎页第三张卡片）共用同一独立对话框（复制提示词 → AI 返回 SSH 地址 → 粘贴连接） */
-$('#btn-ai-bind').onclick = function () { aiBindFlow('settings'); };
-$('#btn-ai-mode').onclick = function () { aiBindFlow('guide'); };
+/* 让 AI 代办绑定（两步走）：先弹「创建私人令牌」面板，令牌粘贴后进第二步提示词对话框 */
+$('#btn-ai-bind').onclick = function () { aiBindFlow(); };
+$('#btn-ai-mode').onclick = function () { aiBindFlow(); };
+$('#aitoken-cancel').onclick = function () { $('#aitoken').hidden = true; };
+$('#aitoken-next').onclick = function () {
+  var token = $('#ai-token-input').value.trim();
+  if (!token) { var er = $('#aitoken-error'); er.textContent = '请先到平台创建并粘贴令牌'; er.hidden = false; return; }
+  $('#aitoken').hidden = true;
+  aiBindStep2(token);
+};
+$('#ai-token-input').onkeydown = function (ev) { if (ev.key === 'Enter') $('#aitoken-next').click(); };
 /* 同步冲突二选一（危险操作）：本地覆盖远端（force push）/ 远端覆盖本地（reset --hard） */
 function openConflictDlg() {
   var files = (syncInfo.conflict && syncInfo.conflict.length) ? syncInfo.conflict.join('、') : '（清单未知）';
@@ -570,6 +578,7 @@ document.addEventListener('keydown', function (ev) {
   if (ev.key === 'Escape') {
     if (!$('#lb-menu').hidden) lbMenuHide();
     else if (!$('#lightbox').hidden) closeLb();
+    else if (!$('#aitoken').hidden) $('#aitoken').hidden = true;
     else if (!$('#dlg').hidden) closeDlg(null);
     else if (!$('#trdlg').hidden) $('#trdlg').hidden = true;
     else if (!$('#setup').hidden) {

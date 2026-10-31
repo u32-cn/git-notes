@@ -243,7 +243,7 @@
         <button id="btn-ai-mode" class="setup-card" data-u32-name="btn-ai-mode" type="button">
           <svg class="setup-card-ic" viewBox="0 0 48 48" aria-hidden="true"><g fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M24 8l3.2 9.6a3 3 0 0 0 1.9 1.9L38.7 22.7l-9.6 3.2a3 3 0 0 0-1.9 1.9L24 37.4l-3.2-9.6a3 3 0 0 0-1.9-1.9L9.3 22.7l9.6-3.2a3 3 0 0 0 1.9-1.9Z"/><path d="M38 6v6M41 9h-6"/><path d="M10 34v6M13 37H7"/></g></svg>
           <span class="setup-card-t">让AI绑定远端</span>
-          <span class="setup-card-d">复制一段提示词到 workbuddy 等 AI 工具，由 AI 代办加公钥、建仓库，把返回的地址粘贴回来即可。</span>
+          <span class="setup-card-d">两步走：先手动创建平台私人令牌，AI 凭令牌代办添加公钥、创建私有仓库；用完建议删除令牌。</span>
         </button>
       </div>
     </div>
@@ -333,6 +333,32 @@
       <button id="tr-clear" data-u32-name="tr-clear" type="button" hidden>清除筛选</button>
       <button id="tr-cancel" data-u32-name="tr-cancel" type="button">取消</button>
       <button id="tr-apply" class="primary" data-u32-name="tr-apply" type="button">应 用</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI 绑定第一步：手动创建平台私人令牌（第二步提示词走通用 #dlg） -->
+<div id="aitoken" class="overlay" data-u32-name="aitoken" hidden>
+  <div class="panel" data-u32-name="aitoken-panel">
+    <h3 data-u32-name="aitoken-title">让 AI 绑定远端 · ① 创建私人令牌</h3>
+    <p class="hint" data-u32-name="aitoken-hint">先到 Git 平台手动创建一个私人令牌（无账号请先注册）：</p>
+    <div class="setup-sites" data-u32-name="aitoken-gitee">
+      <span class="setup-site-name">Gitee</span>
+      <a href="gn-external://https://gitee.com/profile/personal_access_tokens/new">创建令牌 ↗</a>
+      <a href="gn-external://https://gitee.com/signup">注册 ↗</a>
+    </div>
+    <div class="setup-sites" data-u32-name="aitoken-github">
+      <span class="setup-site-name">GitHub</span>
+      <a href="gn-external://https://github.com/settings/tokens/new?description=git-notes-token&amp;scopes=repo,admin:public_key">创建令牌 ↗</a>
+      <a href="gn-external://https://github.com/signup">注册 ↗</a>
+    </div>
+    <p class="hint" data-u32-name="aitoken-scope-hint">权限：Gitee 勾 projects + ssh_keys（+user_info）；GitHub 用链接默认勾选（repo + admin:public_key）即可。</p>
+    <input id="ai-token-input" data-u32-name="ai-token-input" placeholder="粘贴刚生成的私人令牌" autocomplete="off">
+    <p class="hint" data-u32-name="aitoken-sec-hint">令牌只在下一步拼进提示词交给 AI，不保存在本应用；配置完成后建议回平台删除该令牌，更安全。</p>
+    <div id="aitoken-error" class="dlg-error" data-u32-name="aitoken-error" hidden></div>
+    <div class="dlg-actions" data-u32-name="aitoken-actions">
+      <button id="aitoken-cancel" data-u32-name="aitoken-cancel" type="button">取消</button>
+      <button id="aitoken-next" class="primary" data-u32-name="aitoken-next" type="button">下一步</button>
     </div>
   </div>
 </div>

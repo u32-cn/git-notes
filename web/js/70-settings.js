@@ -332,21 +332,29 @@ function assertSshAddr(remote) {
   if (/^https?:\/\//i.test(remote)) { setupErr('请粘贴 SSH 地址（git@ 开头），不要用 https:// 地址'); return false; }
   return true;
 }
-/* 让 AI 代办绑定（独立入口，不经过手动绑定的三步面板）：弹窗生成含本机公钥的提示词，
-   复制到 workbuddy 等 AI 工具执行（加公钥+建私有空仓），AI 只回一行 SSH 地址；
-   粘贴回来点连接后只登记远端地址并收起一切面板，同步在设置页手动触发 */
-function aiBindPrompt(pubKey) {
-  return '请帮我在 Gitee（若我没有 Gitee 账号则用 GitHub）上完成两件事：\n'
-    + '1. 把下面这台设备的 SSH 公钥添加到我账号的「SSH 公钥」设置里：\n'
+/* AI 绑定两步走：①弹「创建私人令牌」面板（令牌不落盘）→ ②生成含令牌+本机公钥的提示词
+   供复制到 workbuddy 等 AI 工具（AI 凭令牌调平台 API 加公钥+建私有空仓），粘贴返回的
+   SSH 地址后只登记远端（bindConnect）；完成后提醒用户回平台删除令牌 */
+function aiBindFlow() {
+  $('#ai-token-input').value = '';
+  $('#aitoken-error').hidden = true;
+  $('#aitoken').hidden = false;
+  $('#ai-token-input').focus();
+}
+function aiBindPromptV2(token, pubKey) {
+  return '我有一个 Git 平台的私人令牌（已授权仓库/项目与 SSH 公钥权限），请用它帮我完成下面两件事；除调用 API 外不要把它写进任何文件或发给他人：\n'
+    + '私人令牌：' + token + '\n'
+    + '平台识别：令牌以 ghp_ 或 github_pat_ 开头则为 GitHub，否则按 Gitee 处理。\n'
+    + '1. 调平台 API 把下面这台设备的 SSH 公钥添加到我账号（Gitee：POST https://gitee.com/api/v5/user/keys，参数 key=公钥、title=git-notes；GitHub：POST https://api.github.com/user/keys）：\n'
     + pubKey + '\n'
-    + '2. 新建一个【私有（Private）】空仓库（不要勾选「初始化 README」），仓库名用 git-notes。\n'
+    + '2. 创建一个【私有（Private）】空仓库，仓库名 git-notes，不要初始化 README（Gitee：POST https://gitee.com/api/v5/user/repos，private=true；GitHub：POST https://api.github.com/user/repos，private=true）。\n'
     + '完成后，只回复一行该仓库的 SSH 地址（格式如 git@gitee.com:用户名/git-notes.git），不要输出其他内容。';
 }
-function aiBindFlow(from) {
+function aiBindStep2(token) {
   apiSetupKey().then(function (r) {
-    var prompt = aiBindPrompt(r.pubKey);
-    dlg('让 AI 帮你绑定远端', {
-      text: '把下面整段提示词复制到 workbuddy 等 AI 工具中执行，它会帮你添加公钥并创建私有空仓库；把它返回的 SSH 地址粘贴到下面输入框即可。\n\n' + prompt,
+    var prompt = aiBindPromptV2(token, r.pubKey);
+    dlg('让 AI 绑定远端 · ② 让 AI 代办', {
+      text: '把整段提示词复制到 workbuddy 等 AI 工具执行（它会凭令牌加公钥并创建私有空仓库）；把 AI 返回的 SSH 地址粘贴到下面点连接。配置完成后建议回平台删除该令牌，更安全。\n\n' + prompt,
       mono: true,
       copy: prompt,
       input: '粘贴 AI 返回的 SSH 地址，如 git@gitee.com:you/git-notes.git',
@@ -356,7 +364,7 @@ function aiBindFlow(from) {
       apiBindConnect(v).then(function () {
         $('#setup').hidden = true;
         $('#setup-clone').hidden = true;
-        bindConnectedDone('已连接远端，点设置页「立即同步」完成首次同步');
+        bindConnectedDone('已连接远端，点设置页「立即同步」完成首次同步；建议删除刚才的私人令牌');
       }).catch(function (e) { status('错误：' + e.message, 'err'); });
     });
   }).catch(function (e) { status('错误：' + e.message, 'err'); });

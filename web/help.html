@@ -65,7 +65,7 @@
       <li><strong>② 建仓库</strong>：在 git 服务商新建一个<strong>私有空仓库</strong>，复制它的 <strong>SSH 地址</strong>（形如 <code>git@gitee.com:you/notes.git</code>，⚠️ 不是 https 地址）。</li>
       <li><strong>③ 粘贴连接</strong>：把 SSH 地址贴进绑定向导，点连接（只登记远端，不做其他操作）。连接后到设置页点「立即同步」完成首次合并推送，之后每台设备都做同样操作，笔记自动同步。</li>
     </ul>
-    <p>不想手动操作？欢迎页与设置页都有独立的「让AI绑定远端」入口：点它会生成一段含本机公钥的提示词，复制到 workbuddy 等 AI 工具执行（AI 帮你添加公钥并创建私有空仓库），把 AI 返回的 SSH 地址粘贴回来点连接即可（同样只登记远端，同步在设置页手动触发）。</p>
+    <p>不想手动操作？欢迎页与设置页都有独立的「让AI绑定远端」，两步走：①先到平台手动创建私人令牌（Gitee：gitee.com/profile/personal_access_tokens/new，勾 projects + ssh_keys；GitHub：github.com/settings/tokens/new，用 repo + admin:public_key 权限）；②把令牌粘贴进应用，它会生成含令牌与本机公钥的提示词，复制到 workbuddy 等 AI 工具执行（AI 凭令牌调 API 加公钥、创建私有空仓库），把返回的 SSH 地址粘贴回来点连接即可。令牌只在提示词里用一次、不落盘，<strong>配置完成后建议回平台删除该令牌</strong>，更安全。</p>
     <p>仅本机使用则什么都不用配；日常使用零操作：打开即最新，发布自动同步。</p>
 
     <h4 data-u32-name="help-h-faq">常见问题</h4>
