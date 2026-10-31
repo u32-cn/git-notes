@@ -28,6 +28,7 @@ function renderSyncInfo() {
   $('#btn-import-key').hidden = false;    /* 常显：导入即可代替生成，同样不许以「已有密钥」为前提 */
   $('#btn-export-key').hidden = !state.hasKey;
   $('#btn-bind-remote').hidden = !isLocal;
+  $('#btn-ai-bind').hidden = !isLocal;
   $('#btn-unbind').hidden = isLocal;
   $('#btn-sync').hidden = isLocal;
   $('#btn-force-push').hidden = !hasConflict;
@@ -330,6 +331,32 @@ function bindConnectDone() {
 function assertSshAddr(remote) {
   if (/^https?:\/\//i.test(remote)) { setupErr('请粘贴 SSH 地址（git@ 开头），不要用 https:// 地址'); return false; }
   return true;
+}
+/* 让 AI 代办绑定：生成含本机公钥的提示词，复制到 workbuddy 等 AI 工具执行（加公钥+建私有空仓），
+   AI 只回一行 SSH 地址，粘贴回来后走统一连接流程（#setup 面板已在底层打开，对话框叠在其上） */
+function aiBindPrompt(pubKey) {
+  return '请帮我在 Gitee（若我没有 Gitee 账号则用 GitHub）上完成两件事：\n'
+    + '1. 把下面这台设备的 SSH 公钥添加到我账号的「SSH 公钥」设置里：\n'
+    + pubKey + '\n'
+    + '2. 新建一个【私有（Private）】空仓库（不要勾选「初始化 README」），仓库名用 git-notes。\n'
+    + '完成后，只回复一行该仓库的 SSH 地址（格式如 git@gitee.com:用户名/git-notes.git），不要输出其他内容。';
+}
+function aiBindFlow(from) {
+  openSetupBind(from);
+  apiSetupKey().then(function (r) {
+    var prompt = aiBindPrompt(r.pubKey);
+    dlg('让 AI 帮你绑定远端', {
+      text: '把下面整段提示词复制到 workbuddy 等 AI 工具中执行，它会帮你添加公钥并创建私有空仓库；把它返回的 SSH 地址粘贴到下面输入框即可。\n\n' + prompt,
+      mono: true,
+      copy: prompt,
+      input: '粘贴 AI 返回的 SSH 地址，如 git@gitee.com:you/git-notes.git',
+      ok: '连 接'
+    }).then(function (v) {
+      if (!v) return;
+      $('#clone-remote').value = v;
+      setupConnectFlow();
+    });
+  }).catch(function (e) { status('错误：' + e.message, 'err'); });
 }
 /* local 态「连接」：probe（可达性+公钥校验）→ 空仓直接 confirm 推送绑定；远端有数据 → confirm 返回合并预览待确认 */
 function bindConnectFlow() {

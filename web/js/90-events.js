@@ -466,6 +466,9 @@ $('#btn-copy-pubkey').onclick = function () { copyBox('#pubkey-box'); };
 watchSshKeyHint('#clone-remote', '#pubkey-sec', '#pubkey-box');
 /* 设置页【绑定远端】：打开同一块三步绑定视图（local 态「连接」自动走探测+绑定） */
 $('#btn-bind-remote').onclick = function () { openSetupBind('settings'); };
+/* 让 AI 代办绑定：设置页与首次引导共用同一对话框（复制提示词 → AI 返回 SSH 地址 → 粘贴连接） */
+$('#btn-ai-bind').onclick = function () { aiBindFlow('settings'); };
+$('#btn-ai-bind-guide').onclick = function () { aiBindFlow('guide'); };
 /* 合并预览（local 态远端有数据时）：确认合并 / 冲突强制推送 / 取消 */
 $('#btn-setup-merge').onclick = function () {
   var btn = $('#btn-setup-merge');

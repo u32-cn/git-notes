@@ -123,7 +123,8 @@
             <p class="hint" id="sync-info" data-u32-name="sync-info"></p>
             <div id="sync-error" class="dlg-error" data-u32-name="sync-error" hidden></div>
             <div class="dlg-actions" data-u32-name="sync-actions" style="justify-content:flex-start;">
-              <button id="btn-bind-remote" data-u32-name="btn-bind-remote" hidden>绑定远端</button>
+              <button id="btn-bind-remote" data-u32-name="btn-bind-remote" hidden>手动绑定远端</button>
+              <button id="btn-ai-bind" data-u32-name="btn-ai-bind" hidden>让AI绑定远端</button>
               <button id="btn-unbind" data-u32-name="btn-unbind" hidden>解绑远端</button>
               <button id="btn-force-push" class="danger" data-u32-name="btn-force-push" hidden>强制推送（本地为准）</button>
               <button id="btn-sync" class="primary" data-u32-name="btn-sync" hidden>立即同步</button>
@@ -255,7 +256,7 @@
         </div>
       </div>
       <div class="setup-step">
-        <div class="settings-label" data-u32-name="setup-step2-label">② 去 Git 网站设置：添加公钥 + 新建仓库</div>
+        <div class="settings-label" data-u32-name="setup-step2-label">② 去 Git 网站设置（或让 AI 代办）：添加公钥 + 新建仓库</div>
         <p class="hint" data-u32-name="setup-step2-hint">任选一个你有账号的网站，点链接直达：</p>
         <div class="setup-sites" data-u32-name="setup-sites-gitee">
           <span class="setup-site-name">Gitee</span>
@@ -274,6 +275,9 @@
         </div>
         <p class="setup-warn" data-u32-name="setup-warn">⚠ 仓库必须设置为「私有（Private）」！否则你的笔记对全网公开可见。</p>
         <p class="hint" id="setup-guide" data-u32-name="setup-guide">新建时保持空仓库（不要勾选「初始化 README」）；建好后进入仓库页面，把 SSH 地址复制下来，形如 git@gitee.com:you/notes.git。其他 Git 网站也一样：设置里找「SSH 公钥」，新建仓库后拷 SSH 地址。</p>
+        <div class="dlg-actions" data-u32-name="ai-bind-row" style="justify-content:flex-start;">
+          <button id="btn-ai-bind-guide" data-u32-name="btn-ai-bind-guide" type="button">🤖 让 AI 帮我绑定</button>
+        </div>
       </div>
       <div class="setup-step">
         <div class="settings-label" data-u32-name="setup-step3-label">③ 粘贴仓库地址，连接</div>
