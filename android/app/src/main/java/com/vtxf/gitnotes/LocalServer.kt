@@ -31,8 +31,8 @@ import org.json.JSONObject
  * - GET / 与 /index.html → assets/index.html + CSP 脚本内容哈希 + 种下页面凭证 cookie
  * - /healthz → {"ok":true,"version":...,"pid":...}
  * - /media/micro/... → 仓库配图直出（cookie 鉴权 + 路径白名单）
- * - /api/status | setup/local | setup/key(+rotate) | setup/clone | bind 系五端点 | unbind | sync |
- *   force-push | posts(GET/POST/PUT/DELETE) | tags | search | git 历史三端点(log/show/restore) | repo/open(移动端返回不支持) | http/request(AI 通用 HTTP) | web/search(AI 联网搜索) → 本地 GitRepo（JGit）
+ * - /api/status | setup/local | setup/key(+rotate) | setup/clone | bind/connect | unbind | sync |
+ *   force-push | remote-overwrite | posts(GET/POST/PUT/DELETE) | tags | search | git 历史三端点(log/show/restore) | repo/open(移动端返回不支持) | http/request(AI 通用 HTTP) | web/search(AI 联网搜索) → 本地 GitRepo（JGit）
  *
  * 安全红线：只绑回环；Host 校验防 DNS rebinding；cookie（SameSite=Lax）+ 随机令牌防跨站；
  * 日志不打印请求头、cookie 与查询串。
@@ -322,27 +322,8 @@ class LocalServer(private val context: Context) {
             path == "/api/setup/clone" && req.method == "POST" ->
                 JSONObject().put("started", repo.startClone(body?.optString("remote") ?: ""))
 
-            path == "/api/bind/probe" && req.method == "POST" -> repo.bindProbe(body?.optString("remote") ?: "")
-
-            path == "/api/bind/confirm" && req.method == "POST" -> {
-                if (repo.syncState.busy || repo.writeBusy) throw LocalApiError(409, "同步或写入进行中")
-                repo.enqueueWrite { repo.bindConfirm(body?.optString("remote") ?: "") }
-            }
-
-            path == "/api/bind/merge" && req.method == "POST" -> {
-                if (repo.syncState.busy || repo.writeBusy) throw LocalApiError(409, "同步或写入进行中")
-                repo.enqueueWrite { repo.bindMerge() }
-            }
-
-            path == "/api/bind/force-push" && req.method == "POST" -> {
-                if (repo.syncState.busy || repo.writeBusy) throw LocalApiError(409, "同步或写入进行中")
-                repo.enqueueWrite { repo.bindForcePush() }
-            }
-
-            path == "/api/bind/cancel" && req.method == "POST" -> {
-                if (repo.syncState.busy || repo.writeBusy) throw LocalApiError(409, "同步或写入进行中")
-                repo.enqueueWrite { repo.cancelBind(); JSONObject() }
-            }
+            path == "/api/bind/connect" && req.method == "POST" ->
+                repo.enqueueWrite { repo.bindConnect(body?.optString("remote") ?: "") }
 
             path == "/api/unbind" && req.method == "POST" -> {
                 repo.unbind(); JSONObject()
@@ -356,6 +337,11 @@ class LocalServer(private val context: Context) {
             path == "/api/force-push" && req.method == "POST" -> {
                 if (repo.syncState.busy || repo.writeBusy) throw LocalApiError(409, "同步或写入进行中")
                 repo.enqueueWrite { repo.forcePush(); JSONObject() }
+            }
+
+            path == "/api/remote-overwrite" && req.method == "POST" -> {
+                if (repo.syncState.busy || repo.writeBusy) throw LocalApiError(409, "同步或写入进行中")
+                repo.enqueueWrite { repo.remoteOverwrite() }
             }
 
             path == "/api/posts" && req.method == "GET" -> {

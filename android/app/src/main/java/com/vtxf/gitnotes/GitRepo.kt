@@ -336,109 +336,26 @@ class GitRepo(context: Context) {
         return JSONObject().put("ready", true)
     }
 
-    /* ---------- 绑定远端（local → ready） ---------- */
+    /* ---------- 连接远端（local → ready）：只登记远端地址，不做任何 git 网络操作 ----------
+       fetch/分支校验/合并/推送全部延迟到「立即同步」（doSync）时才发生 */
 
-    /** ls-remote 等价：返回（远端是否空仓, HEAD 默认分支）；SSH 缺公钥时错误带 needPubKey */
-    fun bindProbe(remoteUrl: String): JSONObject {
+    fun bindConnect(remoteUrl: String): JSONObject {
+        if (stage() != "local") throw LocalApiError(409, "仅「仅本机使用」模式可连接远端")
         if (remoteUrl.isBlank() || Regex("\\s").containsMatchIn(remoteUrl)) {
             throw LocalApiError(400, "远端地址不能为空且不能含空格")
         }
-        var needKey = false
-        if (isSshRemote(remoteUrl) && !keyFile.isFile) {
-            ensureKey()
-            needKey = true
-        }
-        try {
-            val refs = Git.lsRemoteRepository()
-                .setRemote(remoteUrl)
-                .setTransportConfigCallback(sshCallback)
-                .call()
-            // 空仓 = 无 heads；分支定死 main，不关心远端 HEAD 指向
-            val empty = refs.none { it.name.startsWith("refs/heads/") }
-            return JSONObject().put("ok", true).put("empty", empty).put("needPubKey", needKey)
-        } catch (e: Exception) {
-            val msg = rootMessage(e)
-            val err = LocalApiError(400, "远端不可达：" + msg)
-            if (needKey || isAuthError(msg)) err.needPubKey = true
-            throw err
-        }
-    }
-
-    /** 绑定三况：远端空仓直接推；本地无提交采用远端；双方有历史返回 pendingMerge 预览 */
-    fun bindConfirm(remoteUrl: String): JSONObject {
-        if (stage() != "local") throw LocalApiError(409, "仅「仅本机使用」模式可绑定远端")
-        bindProbe(remoteUrl)
         git().use { g ->
-            ensureAuthor(g)
             if (g.remoteList().call().any { it.name == "origin" }) {
                 g.remoteRemove().setRemoteName("origin").call()
             }
             g.remoteAdd().setName("origin").setUri(org.eclipse.jgit.transport.URIish(remoteUrl)).call()
-            g.fetch().setRemote("origin").setTransportConfigCallback(sshCallback).call()
         }
-        // 分支定死 main：本地不在 main 就改名迁移（老仓库兼容），不再对齐远端 HEAD
-        val cur = git().repository.branch
-        if (cur.isNotEmpty() && cur != MAIN_BRANCH) {
-            git().branchRename().setOldName(cur).setNewName(MAIN_BRANCH).call()
-        }
-        // 必须用 repo 绑定的 LsRemoteCommand 才能解析远端名 origin；
-        // Git.lsRemoteRepository() 无仓库，setRemote("origin") 会抛 "origin: not found"
-        val refs = git().use { g ->
-            org.eclipse.jgit.api.LsRemoteCommand(g.repository)
-                .setRemote("origin")
-                .setTransportConfigCallback(sshCallback)
-                .call()
-        }
-        val remoteHasMain = refs.any { it.name == "refs/heads/$MAIN_BRANCH" }
-        val localCount = git().use { g -> countCommits(g.repository, g.repository.resolve(Constants.HEAD)) }
-        if (!remoteHasMain) {
-            // 远端没有 main（空仓或远端默认分支是 master 等旧分支）：本地 main 直接推上去建立
-            pushBranch(force = false, setUpstream = true)
-            saveConfig(patchRemote = remoteUrl)
-            return JSONObject().put("bound", true).put("mode", "empty-remote-pushed")
-        }
-        if (localCount == 0) {
-            // 本地无提交：直接采用远端内容
-            git().use { g ->
-                g.reset().setRef("refs/remotes/origin/$MAIN_BRANCH")
-                    .setMode(org.eclipse.jgit.api.ResetCommand.ResetType.HARD).call()
-            }
-            saveConfig(patchRemote = remoteUrl)
-            return JSONObject().put("bound", true).put("mode", "fast-forward")
-        }
-        // 双方都有历史：返回预览，待用户确认合并
-        val remoteCount = git().use { g ->
-            countCommits(g.repository, g.repository.resolve("refs/remotes/origin/$MAIN_BRANCH"))
-        }
-        return JSONObject()
-            .put("pendingMerge", true).put("branch", MAIN_BRANCH)
-            .put("localCount", localCount).put("remoteCount", remoteCount)
+        saveConfig(patchRemote = remoteUrl)
+        return JSONObject().put("connected", true)
     }
 
-    /** 确认合并并绑定：整合远端（rebase → merge）后推送 */
-    fun bindMerge(): JSONObject {
-        if (stage() != "local") throw LocalApiError(409, "当前状态无可合并的绑定操作")
-        val url = originUrl() ?: throw LocalApiError(409, "尚未探测到远端")
-        git().use { g -> integrateRemote(g) }
-        saveConfig(patchRemote = url)
-        pushBranch(force = false, setUpstream = true)
-        syncState.conflict = null
-        syncState.lastAt = nowIso()
-        return JSONObject().put("bound", true).put("mode", "merged")
-    }
-
-    /** 绑定阶段合并冲突时的出口：以本地为准强制推送 */
-    fun bindForcePush(): JSONObject {
-        if (stage() != "local") throw LocalApiError(409, "仅「仅本机使用」模式可在绑定时强制推送")
-        if (originUrl() == null) throw LocalApiError(409, "尚未探测到远端")
-        pushBranch(force = true, setUpstream = true)
-        saveConfig(patchRemote = originUrl())
-        syncState.conflict = null
-        syncState.lastAt = nowIso()
-        return JSONObject().put("bound", true).put("mode", "force-pushed")
-    }
-
-    fun cancelBind() {
+    fun unbind() {
+        if (stage() != "ready") throw LocalApiError(409, "当前未连接远端")
         git().use { g ->
             if (g.remoteList().call().any { it.name == "origin" }) {
                 g.remoteRemove().setRemoteName("origin").call()
@@ -448,18 +365,29 @@ class GitRepo(context: Context) {
         saveConfig(patchRemote = "")
     }
 
-    fun unbind() {
-        if (stage() != "ready") throw LocalApiError(409, "当前未绑定远端")
-        cancelBind()
-    }
-
     fun forcePush() {
-        if (stage() != "ready") throw LocalApiError(409, "当前未绑定远端")
+        if (stage() != "ready") throw LocalApiError(409, "当前未连接远端")
         pushBranch(force = true, setUpstream = false)
         syncState.ahead = 0
         syncState.conflict = null
         syncState.lastError = ""
         syncState.lastAt = nowIso()
+    }
+
+    /** 同步冲突二选一之一：远端覆盖本地（reset --hard 到 origin/main），本地未推送的提交将丢失 */
+    fun remoteOverwrite(): JSONObject {
+        if (stage() != "ready") throw LocalApiError(409, "当前未连接远端")
+        git().use { g ->
+            g.reset().setRef("refs/remotes/origin/$MAIN_BRANCH")
+                .setMode(org.eclipse.jgit.api.ResetCommand.ResetType.HARD).call()
+        }
+        syncState.ahead = 0
+        syncState.behind = 0
+        syncState.conflict = null
+        syncState.lastError = ""
+        syncState.lastAt = nowIso()
+        pyCache.clear()
+        return JSONObject().put("overwritten", true)
     }
 
     private fun originUrl(): String? = git().use { g ->
@@ -507,9 +435,32 @@ class GitRepo(context: Context) {
             git().use { g ->
                 syncState.phase = "获取远端"
                 g.fetch().setRemote("origin").setTransportConfigCallback(sshCallback).call()
+                // 本地分支必须是 main（应用创建的仓库恒为 main，若不是说明仓库被外部改动过），不自动改名
+                val cur = g.repository.branch
+                if (cur != MAIN_BRANCH) {
+                    throw LocalApiError(409, "本地分支不是 $MAIN_BRANCH（应用创建的仓库不应出现此情况），请检查本地仓库")
+                }
+                // 远端没有 main：不管远端其他分支，直接把本地 main 推上去新建，完成
+                val remoteId = g.repository.resolve("origin/" + MAIN_BRANCH)
+                if (remoteId == null) {
+                    syncState.phase = "新建远端 $MAIN_BRANCH 分支"
+                    pushBranch(force = false, setUpstream = true)
+                    syncState.ahead = 0; syncState.behind = 0; syncState.conflict = null
+                    syncState.lastAt = nowIso()
+                    return JSONObject().put("ahead", 0).put("behind", 0).put("created", MAIN_BRANCH)
+                }
                 val (ahead, behind) = aheadBehind(g)
                 syncState.ahead = ahead
                 syncState.behind = behind
+                // 本地还没有提交：直接采用远端内容（补上本地缺的）
+                val localCount = countCommits(g.repository, g.repository.resolve(Constants.HEAD))
+                if (localCount == 0) {
+                    g.reset().setRef("refs/remotes/origin/$MAIN_BRANCH")
+                        .setMode(org.eclipse.jgit.api.ResetCommand.ResetType.HARD).call()
+                    syncState.ahead = 0; syncState.behind = 0
+                    syncState.lastAt = nowIso()
+                    return JSONObject().put("ahead", 0).put("behind", 0).put("fastForward", true)
+                }
                 if (behind > 0) {
                     syncState.phase = "整合远端（落后 $behind 个提交）"
                     integrateRemote(g)
