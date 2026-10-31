@@ -120,16 +120,29 @@ async function doSync() {
     syncState.phase = '获取远端';
     await gitOk(['fetch', 'origin'], { timeout: 300000 });
     const br = store.MAIN_BRANCH;
-    // 远端还没有本地分支（如本地刚改名分支）时：ahead=全部本地提交，behind=0，推送会在远端建立新分支
+    // 本地分支必须是 main（应用创建的仓库恒为 main，若不是说明仓库被外部改动过），不自动改名
+    const cur = (await git(['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
+    if (cur !== br) throw appError(409, '本地分支不是 ' + br + '（应用创建的仓库不应出现此情况），请检查本地仓库');
+    // 远端没有 main：不管远端其他分支，直接把本地 main 推上去新建，完成
     const hasRemoteRef = (await git(['rev-parse', '--verify', '--quiet', 'origin/' + br])).code === 0;
-    let ahead = 0, behind = 0;
-    if (hasRemoteRef) {
-      const cnt = await gitOk(['rev-list', '--left-right', '--count', `${br}...origin/${br}`]);
-      [ahead, behind] = cnt.stdout.trim().split(/\s+/).map(Number);
-    } else {
-      ahead = parseInt((await git(['rev-list', '--count', 'HEAD'])).stdout.trim() || '0', 10);
+    if (!hasRemoteRef) {
+      syncState.phase = '新建远端 ' + br + ' 分支';
+      await gitOk(['push', '-u', 'origin', br], { timeout: 300000 });
+      syncState.ahead = 0; syncState.behind = 0; syncState.conflict = null;
+      syncState.lastAt = new Date().toISOString();
+      return { ahead: 0, behind: 0, created: br };
     }
+    const cnt = await gitOk(['rev-list', '--left-right', '--count', `${br}...origin/${br}`]);
+    const [ahead, behind] = cnt.stdout.trim().split(/\s+/).map(Number);
     syncState.ahead = ahead; syncState.behind = behind;
+    const localCount = parseInt((await git(['rev-list', '--count', 'HEAD'])).stdout.trim() || '0', 10);
+    if (localCount === 0) {
+      // 本地还没有提交：直接采用远端内容（补上本地缺的）
+      await gitOk(['reset', '--hard', 'origin/' + br]);
+      syncState.ahead = 0; syncState.behind = 0;
+      syncState.lastAt = new Date().toISOString();
+      return { ahead: 0, behind: 0, fastForward: true };
+    }
     if (behind > 0) {
       syncState.phase = `整合远端（落后 ${behind} 个提交）`;
       await integrateRemote();
@@ -300,104 +313,49 @@ async function startClone(remote) {
   return { started: true };
 }
 
-/* ================= 绑定远端（local → ready） ================= */
+/* ================= 连接远端（local → ready）：只登记远端地址，不做任何 git 网络操作 =================
+   fetch/分支校验/合并/推送全部延迟到「立即同步」（doSync）时才发生 */
 
-async function bindProbe(remote) {
+async function bindConnect(remote) {
+  if (stage() !== 'local') throw appError(409, '仅「仅本机使用」模式可连接远端');
   if (!remote || /\s/.test(remote)) throw appError(400, '远端地址不能为空且不能含空格');
-  let needKey = false;
-  if (store.isSshRemote(remote) && !fs.existsSync(KEY_FILE)) {
-    await ensureKey();
-    needKey = true;
-  }
-  const r = await git(['ls-remote', remote], { timeout: 120000 });
-  if (r.code !== 0) {
-    const msg = (r.stderr || r.stdout).trim().split('\n').pop() || 'ls-remote 失败';
-    const e = appError(400, '远端不可达：' + msg);
-    if (needKey || /permission denied|publickey/i.test(r.stderr)) e.needPubKey = true;
-    throw e;
-  }
-  // 空仓时输出为空；分支定死 main，不关心远端 HEAD 指向
-  return { ok: true, empty: r.stdout.trim() === '', needPubKey: needKey };
-}
-
-async function getOriginUrl() {
-  const r = await git(['remote', 'get-url', 'origin']);
-  return r.code === 0 ? r.stdout.trim() : '';
-}
-
-async function bindConfirm(remote) {
-  if (stage() !== 'local') throw appError(409, '仅「仅本机使用」模式可绑定远端');
-  await bindProbe(remote);
-  await ensureAuthor();
   const hasOrigin = (await git(['remote'])).stdout.split(/\r?\n/).includes('origin');
   if (hasOrigin) await gitOk(['remote', 'remove', 'origin']);
   await gitOk(['remote', 'add', 'origin', remote]);
-  await gitOk(['fetch', 'origin'], { timeout: 300000 });
-  // 分支定死 main：本地不在 main 就改名迁移（老仓库兼容），不再对齐远端 HEAD
-  const cur = (await git(['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
-  if (cur && cur !== store.MAIN_BRANCH) await gitOk(['branch', '-m', cur, store.MAIN_BRANCH]);
-  const remoteHasMain = (await git(['ls-remote', 'origin', store.MAIN_BRANCH])).stdout.trim() !== '';
-  const localCount = parseInt((await git(['rev-list', '--count', 'HEAD'])).stdout.trim() || '0', 10);
-  if (!remoteHasMain) {
-    // 远端没有 main（空仓或远端默认分支是 master 等旧分支）：本地 main 直接推上去建立
-    await gitOk(['push', '-u', 'origin', store.MAIN_BRANCH], { timeout: 300000 });
-    store.saveConfig({ remote });
-    return { bound: true, mode: 'empty-remote-pushed' };
-  }
-  if (localCount === 0) {
-    // 本地无提交：直接采用远端内容
-    await gitOk(['reset', '--hard', 'origin/' + store.MAIN_BRANCH]);
-    store.saveConfig({ remote });
-    return { bound: true, mode: 'fast-forward' };
-  }
-  // 双方都有历史：返回预览，待用户确认合并
-  const remoteCount = parseInt((await git(['rev-list', '--count', 'origin/' + store.MAIN_BRANCH])).stdout.trim() || '0', 10);
-  return { pendingMerge: true, branch: store.MAIN_BRANCH, localCount, remoteCount };
+  store.saveConfig({ remote });
+  return { connected: true };
 }
 
-async function bindMerge() {
-  if (stage() !== 'local') throw appError(409, '当前状态无可合并的绑定操作');
-  if (!(await git(['remote'])).stdout.includes('origin')) throw appError(409, '尚未探测到远端');
-  await integrateRemote();
-  store.saveConfig({ remote: await getOriginUrl() });
-  await gitOk(['push', '-u', 'origin', store.MAIN_BRANCH], { timeout: 300000 });
-  syncState.conflict = null;
-  syncState.lastAt = new Date().toISOString();
-  return { bound: true, mode: 'merged' };
-}
-
-/* 绑定阶段合并冲突时的出口：以本地为准强制推送 */
-async function bindForcePush() {
-  if (stage() !== 'local') throw appError(409, '仅「仅本机使用」模式可在绑定时强制推送');
-  if (!(await git(['remote'])).stdout.includes('origin')) throw appError(409, '尚未探测到远端');
-  const p = await git(['push', '--force', '-u', 'origin', store.MAIN_BRANCH], { timeout: 300000 });
-  if (p.code !== 0) throw new Error('强制推送失败：' + (p.stderr || p.stdout).trim().split('\n')[0]);
-  store.saveConfig({ remote: await getOriginUrl() });
-  syncState.conflict = null;
-  syncState.lastAt = new Date().toISOString();
-  return { bound: true, mode: 'force-pushed' };
-}
-
-async function cancelBind() {
+async function unbind() {
+  if (stage() !== 'ready') throw appError(409, '当前未连接远端');
   const hasOrigin = (await git(['remote'])).stdout.split(/\r?\n/).includes('origin');
   if (hasOrigin) await gitOk(['remote', 'remove', 'origin']);
   syncState.conflict = null;
   store.saveConfig({ remote: '' });
 }
 
-async function unbind() {
-  if (stage() !== 'ready') throw appError(409, '当前未绑定远端');
-  await cancelBind();
-}
-
 async function forcePush() {
-  if (stage() !== 'ready') throw appError(409, '当前未绑定远端');
+  if (stage() !== 'ready') throw appError(409, '当前未连接远端');
   const p = await git(['push', '--force', 'origin', store.MAIN_BRANCH], { timeout: 300000 });
   if (p.code !== 0) throw new Error('强制推送失败：' + (p.stderr || p.stdout).trim().split('\n')[0]);
   syncState.ahead = 0;
   syncState.conflict = null;
   syncState.lastError = '';
   syncState.lastAt = new Date().toISOString();
+}
+
+/* 同步冲突二选一之一：远端覆盖本地（reset --hard 到 origin/main），本地未推送的提交将丢失 */
+async function remoteOverwrite() {
+  if (stage() !== 'ready') throw appError(409, '当前未连接远端');
+  const r = await git(['reset', '--hard', 'origin/' + store.MAIN_BRANCH]);
+  if (r.code !== 0) throw new Error('远端覆盖失败：' + (r.stderr || r.stdout).trim().split('\n')[0]);
+  syncState.ahead = 0;
+  syncState.behind = 0;
+  syncState.conflict = null;
+  syncState.lastError = '';
+  syncState.lastAt = new Date().toISOString();
+  store.clearPyCache();
+  return { overwritten: true };
 }
 
 function ensureReady() {
@@ -905,7 +863,7 @@ module.exports = {
   hasRepo, stage, cloneState, syncState,
   enqueueWrite, isWriteBusy: () => writeBusy,
   setupLocal, ensureKey, rotateKey, importKey, readPrivateKey, startClone,
-  bindProbe, bindConfirm, bindMerge, bindForcePush, cancelBind, unbind, forcePush,
+  bindConnect, unbind, forcePush, remoteOverwrite,
   doSync,
   ensureReady, writePreSync, writePost, updatePost, deletePost, writeTags, setPin, writeMain,
   gitLog, gitShow, gitRestore,

@@ -104,20 +104,8 @@ async function route(method, pathname, query, body) {
     out = git.readPrivateKey();
   } else if (pathname === '/api/setup/clone' && method === 'POST') {
     out = await git.startClone(body ? body.remote : '');
-  } else if (pathname === '/api/bind/probe' && method === 'POST') {
-    out = await git.bindProbe(body ? body.remote : '');
-  } else if (pathname === '/api/bind/confirm' && method === 'POST') {
-    busyGuard();
-    out = await git.enqueueWrite(() => git.bindConfirm(body ? body.remote : ''));
-  } else if (pathname === '/api/bind/merge' && method === 'POST') {
-    busyGuard();
-    out = await git.enqueueWrite(() => git.bindMerge());
-  } else if (pathname === '/api/bind/force-push' && method === 'POST') {
-    busyGuard();
-    out = await git.enqueueWrite(() => git.bindForcePush());
-  } else if (pathname === '/api/bind/cancel' && method === 'POST') {
-    busyGuard();
-    out = await git.enqueueWrite(() => git.cancelBind());
+  } else if (pathname === '/api/bind/connect' && method === 'POST') {
+    out = await git.enqueueWrite(() => git.bindConnect(body ? body.remote : ''));
   } else if (pathname === '/api/unbind' && method === 'POST') {
     out = await git.unbind();
   } else if (pathname === '/api/sync' && method === 'POST') {
@@ -128,6 +116,9 @@ async function route(method, pathname, query, body) {
   } else if (pathname === '/api/force-push' && method === 'POST') {
     busyGuard();
     out = await git.enqueueWrite(() => git.forcePush());
+  } else if (pathname === '/api/remote-overwrite' && method === 'POST') {
+    busyGuard();
+    out = await git.enqueueWrite(() => git.remoteOverwrite());
   } else if (pathname === '/api/posts' && method === 'GET') {
     git.ensureReady();
     out = store.pagePosts(query.get('before') || '');

@@ -103,13 +103,10 @@ function apiPrivateKey() { return api('POST', '/setup/key/private', {}); }
 function apiSetupLocal() { return api('POST', '/setup/local', {}); }
 function apiSetupClone(remote) { return api('POST', '/setup/clone', { remote: remote }); }
 function apiSync() { return api('POST', '/sync', {}); }
-function apiBindProbe(remote) { return api('POST', '/bind/probe', { remote: remote }); }
-function apiBindConfirm(remote) { return api('POST', '/bind/confirm', { remote: remote }); }
-function apiBindMerge() { return api('POST', '/bind/merge', {}); }
-function apiBindForcePush() { return api('POST', '/bind/force-push', {}); }
-function apiBindCancel() { return api('POST', '/bind/cancel', {}); }
+function apiBindConnect(remote) { return api('POST', '/bind/connect', { remote: remote }); }
 function apiUnbind() { return api('POST', '/unbind', {}); }
 function apiForcePush() { return api('POST', '/force-push', {}); }
+function apiRemoteOverwrite() { return api('POST', '/remote-overwrite', {}); }
 function apiPosts(before) { return api('GET', '/posts' + (before ? '?before=' + encodeURIComponent(before) : '')); }
 function apiCreatePost(payload) { return api('POST', '/posts', payload); }
 function apiUpdatePost(payload) { return api('PUT', '/posts', payload); }

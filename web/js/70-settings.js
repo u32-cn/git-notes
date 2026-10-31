@@ -199,7 +199,6 @@ function openSetup(st) {
   $('#setup-error').hidden = true;
   $('#clone-progress').hidden = true;
   $('#pubkey-sec').hidden = true;
-  $('#setup-merge').hidden = true;
   $('#btn-do-clone').disabled = false;
   $('#btn-do-clone').textContent = '连 接';
   if (st && st.stage === 'cloning') {   /* 页面在克隆进行中被刷新：恢复进度视图 */
@@ -321,11 +320,12 @@ function closeSetupPanel() {
   if (setupFrom === 'settings') renderSettingsPage();
 }
 function setupErr(msg) { var e = $('#setup-error'); e.textContent = msg; e.hidden = false; }
-function bindConnectDone() {
+/* 连接成功收尾：只关面板，绝不弹后续面板、不自动同步——首次合并由用户点设置页「立即同步」触发 */
+function bindConnectedDone(msg) {
   $('#setup').hidden = true;
-  toast('已绑定远端', 'ok');
-  boot();
-  if (setupFrom === 'settings') renderSettingsPage();
+  $('#clone-progress').hidden = true;
+  toast(msg || '已连接远端', 'ok');
+  boot(true);
 }
 /* 绑定面板只收 SSH 地址：https 克隆可能侥幸成功但推送必败（无凭证），引导期一律拦下 */
 function assertSshAddr(remote) {
@@ -334,7 +334,7 @@ function assertSshAddr(remote) {
 }
 /* 让 AI 代办绑定（独立入口，不经过手动绑定的三步面板）：弹窗生成含本机公钥的提示词，
    复制到 workbuddy 等 AI 工具执行（加公钥+建私有空仓），AI 只回一行 SSH 地址；
-   粘贴回来点连接后才打开绑定面板，复用其进度/错误视图走统一连接流程 */
+   粘贴回来点连接后只登记远端地址并收起一切面板，同步在设置页手动触发 */
 function aiBindPrompt(pubKey) {
   return '请帮我在 Gitee（若我没有 Gitee 账号则用 GitHub）上完成两件事：\n'
     + '1. 把下面这台设备的 SSH 公钥添加到我账号的「SSH 公钥」设置里：\n'
@@ -353,39 +353,28 @@ function aiBindFlow(from) {
       ok: '连 接'
     }).then(function (v) {
       if (!v) return;
-      openSetupBind(from);
-      $('#clone-remote').value = v;
-      setupConnectFlow();
+      apiBindConnect(v).then(function () {
+        $('#setup').hidden = true;
+        $('#setup-clone').hidden = true;
+        bindConnectedDone('已连接远端，点设置页「立即同步」完成首次同步');
+      }).catch(function (e) { status('错误：' + e.message, 'err'); });
     });
   }).catch(function (e) { status('错误：' + e.message, 'err'); });
 }
-/* local 态「连接」：probe（可达性+公钥校验）→ 空仓直接 confirm 推送绑定；远端有数据 → confirm 返回合并预览待确认 */
+/* local 态「连接」：只登记远端地址（git remote add origin），不联网校验、不合并不推送；
+   首次同步由用户在设置页点「立即同步」触发 */
 function bindConnectFlow() {
   var remote = $('#clone-remote').value.trim();
   if (!remote) { setupErr('请填写仓库地址'); return; }
   if (!assertSshAddr(remote)) return;
   $('#btn-do-clone').disabled = true;
   $('#setup-error').hidden = true;
-  $('#setup-merge').hidden = true;
-  var prog = $('#clone-progress');
-  prog.textContent = '探测远端…';
-  prog.hidden = false;
-  apiBindProbe(remote).then(function () {
-    prog.textContent = '绑定中…';
-    return apiBindConfirm(remote);
-  }).then(function (r) {
+  apiBindConnect(remote).then(function () {
     $('#btn-do-clone').disabled = false;
-    prog.hidden = true;
-    if (r && r.pendingMerge) {
-      $('#setup-merge-info').textContent = '远端分支 ' + r.branch + ' 已有 ' + r.remoteCount + ' 个提交，本地有 ' + r.localCount + ' 个提交。确认后将把本地提交叠加到远端历史之上并推送（合并策略：rebase → merge）。';
-      $('#setup-merge').hidden = false;
-      return;
-    }
-    bindConnectDone();
+    $('#setup-clone').hidden = true;
+    bindConnectedDone('已连接远端，点设置页「立即同步」完成首次同步');
   }).catch(function (e) {
     $('#btn-do-clone').disabled = false;
-    prog.hidden = true;
-    if (needPubKey(e)) { showClonePubKey(); return; }
     setupErr(e.message);
   });
 }
@@ -413,7 +402,8 @@ function bootSync() {
 }
 
 /* ================= 启动 ================= */
-function boot() {
+/* skipSync=true：跳过打开页面的自动同步（连接远端后用——首次合并必须由用户手动点「立即同步」） */
+function boot(skipSync) {
   apiStatus().then(function (st) {
     state.stage = st.stage;
     state.platform = st.platform || '';
@@ -430,7 +420,7 @@ function boot() {
     renderSyncInfo();
     loadTags().then(initFeed).then(function () {
       if (!feed.error) settleStatus();
-      bootSync();
+      if (!skipSync) bootSync();
     });
   }).catch(function (e) {
     toast('连接本地服务失败：' + e.message, 'err');

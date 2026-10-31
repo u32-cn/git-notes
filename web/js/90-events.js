@@ -413,7 +413,10 @@ $('#btn-sync').onclick = function () {
     toast('已同步', 'ok');
     settleStatus();
     return refreshSyncStatus();
-  }).catch(handleApiError).finally(function () { btn.disabled = false; });
+  }).catch(function (e) {
+    if (e && e.conflict) { openConflictDlg(); refreshSyncStatus(); return; }
+    handleApiError(e);
+  }).finally(function () { btn.disabled = false; });
 };
 $('#btn-show-pubkey').onclick = function () {
   /* 无密钥时先按需生成（apiSetupKey 幂等：已有则原样返回），双端一致；
@@ -469,57 +472,35 @@ $('#btn-bind-remote').onclick = function () { openSetupBind('settings'); };
 /* 让 AI 代办绑定：设置页与首次引导（欢迎页第三张卡片）共用同一独立对话框（复制提示词 → AI 返回 SSH 地址 → 粘贴连接） */
 $('#btn-ai-bind').onclick = function () { aiBindFlow('settings'); };
 $('#btn-ai-mode').onclick = function () { aiBindFlow('guide'); };
-/* 合并预览（local 态远端有数据时）：确认合并 / 冲突强制推送 / 取消 */
-$('#btn-setup-merge').onclick = function () {
-  var btn = $('#btn-setup-merge');
-  btn.disabled = true;
-  $('#setup-merge-error').hidden = true;
-  $('#btn-setup-merge-force').hidden = true;
-  $('#clone-progress').textContent = '合并中…';
-  $('#clone-progress').hidden = false;
-  apiBindMerge().then(function () {
-    btn.disabled = false;
-    $('#clone-progress').hidden = true;
-    bindConnectDone();
-  }).catch(function (e) {
-    btn.disabled = false;
-    $('#clone-progress').hidden = true;
-    var er = $('#setup-merge-error');
-    if (e.conflict) {
-      er.textContent = '自动合并失败（' + (e.conflict || []).join('、') + '）：rebase 与 merge 均无法完成。可「强制推送」以本地为准覆盖远端，或「取消绑定」。';
-      er.hidden = false;
-      $('#btn-setup-merge-force').hidden = false;
-    } else {
-      er.textContent = e.message;
-      er.hidden = false;
-    }
-  });
-};
-$('#btn-setup-merge-force').onclick = function () {
-  dlg('强制推送（绑定）', { text: '将以本地内容为准覆盖远端历史：远端上本地没有的提交（可能含既有笔记）将丢失。确定继续？', ok: '强制推送', danger: true }).then(function (yes) {
+/* 同步冲突二选一（危险操作）：本地覆盖远端（force push）/ 远端覆盖本地（reset --hard） */
+function openConflictDlg() {
+  var files = (syncInfo.conflict && syncInfo.conflict.length) ? syncInfo.conflict.join('、') : '（清单未知）';
+  $('#cfdlg-files').textContent = '冲突文件：' + files;
+  $('#cfdlg').hidden = false;
+}
+$('#cfdlg-cancel').onclick = function () { $('#cfdlg').hidden = true; };
+$('#cfdlg-local').onclick = function () {
+  $('#cfdlg').hidden = true;
+  dlg('本地覆盖远端', { text: '将以本地为准强制覆盖远端历史：远端上本地没有的提交（可能含其他设备的笔记）将永久丢失。确定继续？', ok: '本地覆盖远端', danger: true }).then(function (yes) {
     if (!yes) return;
-    $('#btn-setup-merge-force').disabled = true;
-    $('#clone-progress').textContent = '强制推送中…';
-    $('#clone-progress').hidden = false;
-    apiBindForcePush().then(function () {
-      $('#btn-setup-merge-force').disabled = false;
-      $('#clone-progress').hidden = true;
-      bindConnectDone();
-    }).catch(function (e) {
-      $('#btn-setup-merge-force').disabled = false;
-      $('#clone-progress').hidden = true;
-      var er = $('#setup-merge-error');
-      er.textContent = e.message;
-      er.hidden = false;
-    });
+    status('强制推送中…');
+    apiForcePush().then(function () {
+      toast('已以本地为准覆盖远端', 'ok');
+      settleStatus();
+      refreshSyncStatus();
+    }).catch(handleApiError);
   });
 };
-$('#btn-setup-merge-abort').onclick = function () {
-  apiBindCancel().catch(function () {}).then(function () {
-    $('#setup').hidden = true;
-    $('#setup-merge').hidden = true;
-    toast('已取消绑定', '');
-    if (setupFrom === 'settings') renderSettingsPage();
+$('#cfdlg-remote').onclick = function () {
+  $('#cfdlg').hidden = true;
+  dlg('远端覆盖本地', { text: '将以远端为准重置本地：本地未推送的提交（可能是你尚未同步的笔记）将永久丢失。确定继续？', ok: '远端覆盖本地', danger: true }).then(function (yes) {
+    if (!yes) return;
+    status('重置本地中…');
+    apiRemoteOverwrite().then(function () {
+      toast('已以远端为准覆盖本地', 'ok');
+      settleStatus();
+      boot(true);
+    }).catch(handleApiError);
   });
 };
 /* 解绑与强制推送 */
@@ -532,17 +513,7 @@ $('#btn-unbind').onclick = function () {
     }).catch(handleApiError);
   });
 };
-$('#btn-force-push').onclick = function () {
-  dlg('强制推送', { text: '将以本地内容为准覆盖远端历史：远端上本地没有的提交将丢失。确定继续？', ok: '强制推送', danger: true }).then(function (yes) {
-    if (!yes) return;
-    status('强制推送中…');
-    apiForcePush().then(function () {
-      toast('已强制推送（本地为准）', 'ok');
-      settleStatus();
-      refreshSyncStatus();
-    }).catch(handleApiError);
-  });
-};
+$('#btn-force-push').onclick = function () { openConflictDlg(); };
 
 $('#dlg-ok').onclick = function () {
   var input = $('#dlg-input');

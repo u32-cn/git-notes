@@ -126,10 +126,10 @@
               <button id="btn-bind-remote" data-u32-name="btn-bind-remote" hidden>手动绑定远端</button>
               <button id="btn-ai-bind" data-u32-name="btn-ai-bind" hidden>让AI绑定远端</button>
               <button id="btn-unbind" data-u32-name="btn-unbind" hidden>解绑远端</button>
-              <button id="btn-force-push" class="danger" data-u32-name="btn-force-push" hidden>强制推送（本地为准）</button>
+              <button id="btn-force-push" class="danger" data-u32-name="btn-force-push" hidden>处理冲突</button>
               <button id="btn-sync" class="primary" data-u32-name="btn-sync" hidden>立即同步</button>
             </div>
-            <p class="hint" id="ai-hint" data-u32-name="ai-hint" hidden>存在冲突：可选择「强制推送」以本地为准覆盖远端；AI 分析处理将在后续版本提供。</p>
+            <p class="hint" id="ai-hint" data-u32-name="ai-hint" hidden>存在冲突：点「处理冲突」选择以本地或远端为准覆盖（危险操作，请先备份重要数据）。</p>
           </div>
           <div class="settings-sec" data-u32-name="settings-keys">
             <div class="settings-label"><svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m21 2-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>SSH 密钥</div>
@@ -290,15 +290,6 @@
         </div>
         <p class="hint" data-u32-name="setup-skip-hint">熟悉 Git？直接填地址即可。</p>
       </div>
-      <div id="setup-merge" data-u32-name="setup-merge" hidden>
-        <p class="hint" id="setup-merge-info" data-u32-name="setup-merge-info"></p>
-        <div class="dlg-error" id="setup-merge-error" data-u32-name="setup-merge-error" hidden></div>
-        <div class="dlg-actions" data-u32-name="setup-merge-actions">
-          <button id="btn-setup-merge-abort" data-u32-name="btn-setup-merge-abort" type="button">取消绑定</button>
-          <button id="btn-setup-merge-force" class="danger" data-u32-name="btn-setup-merge-force" type="button" hidden>强制推送（本地为准）</button>
-          <button id="btn-setup-merge" class="primary" data-u32-name="btn-setup-merge" type="button">确认合并并绑定</button>
-        </div>
-      </div>
       <div class="dlg-error" id="setup-error" data-u32-name="setup-error" hidden></div>
       <p class="hint" id="clone-progress" data-u32-name="clone-progress" hidden></p>
       <div class="dlg-actions" data-u32-name="setup-actions">
@@ -342,6 +333,20 @@
       <button id="tr-clear" data-u32-name="tr-clear" type="button" hidden>清除筛选</button>
       <button id="tr-cancel" data-u32-name="tr-cancel" type="button">取消</button>
       <button id="tr-apply" class="primary" data-u32-name="tr-apply" type="button">应 用</button>
+    </div>
+  </div>
+</div>
+
+<!-- 同步冲突二选一（危险操作）：本地覆盖远端 / 远端覆盖本地 -->
+<div id="cfdlg" class="overlay" data-u32-name="cfdlg" hidden>
+  <div class="panel" data-u32-name="cfdlg-panel">
+    <h3 data-u32-name="cfdlg-title">同步冲突</h3>
+    <p class="hint" id="cfdlg-files" data-u32-name="cfdlg-files"></p>
+    <p class="setup-warn" data-u32-name="cfdlg-warn">⚠ 两边都有无法自动合并的修改，只能二选一，这是危险操作：被覆盖一方的数据将永久丢失！建议先点设置页「打开仓库文件夹」备份重要数据再操作。</p>
+    <div class="dlg-actions" data-u32-name="cfdlg-actions">
+      <button id="cfdlg-cancel" data-u32-name="cfdlg-cancel" type="button">先不处理</button>
+      <button id="cfdlg-remote" class="danger" data-u32-name="cfdlg-remote" type="button">远端覆盖本地</button>
+      <button id="cfdlg-local" class="danger" data-u32-name="cfdlg-local" type="button">本地覆盖远端</button>
     </div>
   </div>
 </div>
