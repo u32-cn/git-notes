@@ -350,9 +350,10 @@ async function startClone(remote) {
       /* 空仓库克隆（新用户新建空仓直连的主场景）rev-parse HEAD 会报错——绑定落库必须先行，改名/作者初始化失败单独吞掉 */
       saveConfig({ remote });
       try {
-        /* 分支定死 main：远端 HEAD 可能指向别的分支（如老仓库的 master），克隆后统一改名对齐 */
-        const cur = (await git(['rev-parse', '--abbrev-ref', 'HEAD'])).stdout.trim();
-        if (cur && cur !== MAIN_BRANCH) await gitOk(['branch', '-m', cur, MAIN_BRANCH]);
+        /* 分支定死 main：不管远端 HEAD 指向什么（空仓/master/其他），本地一律立到 main——
+           main 不存在则 symbolic-ref 直接把未出生 HEAD 指向 main，首个提交即诞生于 main；
+           main 已存在则是空操作。symbolic-ref 对空仓克隆（无任何提交）同样有效，rev-parse HEAD 则会报错 */
+        await gitOk(['symbolic-ref', 'HEAD', 'refs/heads/' + MAIN_BRANCH]);
       } catch (_) {}
       try { await ensureAuthor(); } catch (_) {}
     } else {
