@@ -1007,14 +1007,11 @@ function validAiConfig(cfg) {
 function defaultMain() {
   return { version: 1, tags: DEFAULT_TAGS.slice(), pins: [], ai: validAiConfig(null) };
 }
-/* AI 提供商预设：远端 JSON（OSS 托管，可随时更新）→ 内存缓存；拉取失败/不合法回退内置清单。
+/* AI 提供商预设：远端 JSON（OSS 托管，可随时更新）→ 内存缓存；拉取失败/不合法仅回退内置「自定义」一条。
+   预设单一事实源为 web/tools/mode_providers.json（发布时上传 OSS）。
    前端 CSP connect-src 'self' 不放宽，故由服务端代理读取，端点 /api/ai/providers（三端同语义）。 */
 const AI_PROVIDERS_URL = 'https://u32.cn/bd/apps/git-notes/info/mode_providers.json';
 const BUILTIN_AI_PROVIDERS = [
-  { id: 'zhipu-free', label: '智谱免费（glm-4.7-flash，免费但不稳定，开放平台 key）', baseURL: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.7-flash', keyLink: 'https://bigmodel.cn/apikey/platform', extra: { thinking: { type: 'disabled' } } },
-  { id: 'zhipu-fast', label: '智谱快速（glm-5.3-flash，开放平台 key）', baseURL: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.3-flash', keyLink: 'https://bigmodel.cn/apikey/platform', extra: { thinking: { type: 'disabled' } } },
-  { id: 'zhipu-coding', label: '智谱编程套餐快速（glm-5.3-flash，Coding 套餐 key）', baseURL: 'https://open.bigmodel.cn/api/coding/paas/v4', model: 'glm-5.3-flash', keyLink: 'https://bigmodel.cn/apikey/platform', extra: { thinking: { type: 'disabled' } } },
-  { id: 'deepseek', label: '深度求索（deepseek-flash，极速）', baseURL: 'https://api.deepseek.com', model: 'deepseek-flash', keyLink: 'https://platform.deepseek.com/api_keys', extra: { thinking: { type: 'disabled' } } },
   { id: 'custom', label: '自定义大模型（手动填写）', baseURL: '', model: '', keyLink: '' },
 ];
 function validProvider(p) {

@@ -717,14 +717,11 @@ class LocalServer(private val context: Context) {
     /* AI 代理：浏览器统一经本机服务转发 AI 请求并逐块透传流式响应（SSE）。
        部分服务商不支持浏览器跨域，同源代理对前端零差别；url/key 来自本机页面 localStorage，不落日志。
        关键：每读一块就 flush——攒着不 flush 的话流式会退化成一次性吐出。 */
-    /* AI 提供商预设：远端 JSON（OSS 托管，可随时更新）→ 内存缓存；拉取失败/不合法回退内置清单。
-       对齐 web/server.js aiProviders（三端同语义）。HTTP 拉取必须在 IO 线程，路由已在线程池执行。 */
+    /* AI 提供商预设：远端 JSON（OSS 托管，可随时更新）→ 内存缓存；拉取失败/不合法仅回退内置「自定义」一条。
+       预设单一事实源为 web/tools/mode_providers.json（发布时上传 OSS）。对齐 web/server.js aiProviders（三端同语义）。
+       HTTP 拉取必须在 IO 线程，路由已在线程池执行。 */
     private val AI_PROVIDERS_URL = "https://u32.cn/bd/apps/git-notes/info/mode_providers.json"
     private val BUILTIN_AI_PROVIDERS = arrayOf(
-        arrayOf("zhipu-free", "智谱免费（glm-4.7-flash，免费但不稳定，开放平台 key）", "https://open.bigmodel.cn/api/paas/v4", "glm-4.7-flash", "https://bigmodel.cn/apikey/platform", """{"thinking":{"type":"disabled"}}"""),
-        arrayOf("zhipu-fast", "智谱快速（glm-5.3-flash，开放平台 key）", "https://open.bigmodel.cn/api/paas/v4", "glm-5.3-flash", "https://bigmodel.cn/apikey/platform", """{"thinking":{"type":"disabled"}}"""),
-        arrayOf("zhipu-coding", "智谱编程套餐快速（glm-5.3-flash，Coding 套餐 key）", "https://open.bigmodel.cn/api/coding/paas/v4", "glm-5.3-flash", "https://bigmodel.cn/apikey/platform", """{"thinking":{"type":"disabled"}}"""),
-        arrayOf("deepseek", "深度求索（deepseek-flash，极速）", "https://api.deepseek.com", "deepseek-flash", "https://platform.deepseek.com/api_keys", """{"thinking":{"type":"disabled"}}"""),
         arrayOf("custom", "自定义大模型（手动填写）", "", "", "", "")
     )
     @Volatile private var aiProvidersCacheData: JSONArray? = null

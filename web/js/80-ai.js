@@ -89,14 +89,11 @@ function aiSaveSettings() {
 }
 
 /* ================= 提供商快捷下拉（设置页 AI 区块）：清单来自 /api/ai/providers
-   （服务端代理远端 OSS JSON，可随时更新；拉取失败回退内置清单）。
+   （服务端代理远端 OSS JSON，单一事实源 web/tools/mode_providers.json，可随时更新；
+   拉取失败仅回退内置「自定义」一条）。下方数组仅为接口返回前的占位。
    选中即自动填 baseURL/model + 获取 Key 链接，附加参数清空（思考默认关闭，想开自己加）；
    已保存配置时切换先确认覆盖；「自定义大模型」不动字段由用户手填 ================= */
 var AI_PROVIDERS = [
-  { id: 'zhipu-free', label: '智谱免费（glm-4.7-flash，免费但不稳定，开放平台 key）', baseURL: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4.7-flash', keyLink: 'https://bigmodel.cn/apikey/platform', extra: { thinking: { type: 'disabled' } } },
-  { id: 'zhipu-fast', label: '智谱快速（glm-5.3-flash，开放平台 key）', baseURL: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-5.3-flash', keyLink: 'https://bigmodel.cn/apikey/platform', extra: { thinking: { type: 'disabled' } } },
-  { id: 'zhipu-coding', label: '智谱编程套餐快速（glm-5.3-flash，Coding 套餐 key）', baseURL: 'https://open.bigmodel.cn/api/coding/paas/v4', model: 'glm-5.3-flash', keyLink: 'https://bigmodel.cn/apikey/platform', extra: { thinking: { type: 'disabled' } } },
-  { id: 'deepseek', label: '深度求索（deepseek-flash，极速）', baseURL: 'https://api.deepseek.com', model: 'deepseek-flash', keyLink: 'https://platform.deepseek.com/api_keys', extra: { thinking: { type: 'disabled' } } },
   { id: 'custom', label: '自定义大模型（手动填写）', baseURL: '', model: '', keyLink: '' }
 ];
 function aiSetKeyLink(url) {

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "20261028 120000",
+  "updatedAt": "20261101 000000",
   "providers": [
     {
       "id": "zhipu-free",
@@ -33,6 +33,13 @@
       "model": "deepseek-flash",
       "keyLink": "https://platform.deepseek.com/api_keys",
       "extra": { "thinking": { "type": "disabled" } }
+    },
+    {
+      "id": "xhs-dots",
+      "label": "小红书大模型(当前免费体验阶段)",
+      "baseURL": "https://note3-prev-api.askdiandian.com/v1",
+      "model": "dots3-note-prev",
+      "keyLink": "https://dots.ai/platform/apikeys"
     },
     {
       "id": "custom",
