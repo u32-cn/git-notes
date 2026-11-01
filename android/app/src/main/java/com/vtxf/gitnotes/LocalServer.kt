@@ -1005,7 +1005,12 @@ class LocalServer(private val context: Context) {
             setRequestProperty("Content-Type", "application/json")
             setRequestProperty("Accept-Encoding", "identity")
             val key = body.optString("key")
-            if (key.isNotEmpty()) setRequestProperty("Authorization", "Bearer $key")
+            // 三个认证头同时携带：服务商只取自己认识的那个（OpenAI 系=Authorization、Azure=api-key、Anthropic=x-api-key），多余头被忽略
+            if (key.isNotEmpty()) {
+                setRequestProperty("Authorization", "Bearer $key")
+                setRequestProperty("api-key", key)
+                setRequestProperty("x-api-key", key)
+            }
         }
         try {
             val payload = body.optJSONObject("body") ?: JSONObject()

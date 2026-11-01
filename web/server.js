@@ -1237,7 +1237,8 @@ async function aiProxy(res, body) {
   try {
     up = await fetch(target, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + String((body && body.key) || ''), 'Accept-Encoding': 'identity' },
+      // 三个认证头同时携带：服务商只取自己认识的那个（OpenAI 系=Authorization、Azure=api-key、Anthropic=x-api-key），多余头被忽略
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + String((body && body.key) || ''), 'api-key': String((body && body.key) || ''), 'x-api-key': String((body && body.key) || ''), 'Accept-Encoding': 'identity' },
       body: JSON.stringify((body && body.body) || {})
     });
   } catch (e) {

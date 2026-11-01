@@ -281,7 +281,8 @@ async function handleAiProxy(req) {
   try {
     up = await fetch(target, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + String((payload && payload.key) || ''), 'Accept-Encoding': 'identity' },
+      // 三个认证头同时携带：服务商只取自己认识的那个（OpenAI 系=Authorization、Azure=api-key、Anthropic=x-api-key），多余头被忽略
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + String((payload && payload.key) || ''), 'api-key': String((payload && payload.key) || ''), 'x-api-key': String((payload && payload.key) || ''), 'Accept-Encoding': 'identity' },
       body: JSON.stringify((payload && payload.body) || {})
     });
   } catch (e) {
