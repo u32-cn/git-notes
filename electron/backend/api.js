@@ -289,7 +289,7 @@ async function handleAiProxy(req) {
   }
   return new Response(up.body, {
     status: up.status,
-    headers: { 'Content-Type': up.headers.get('content-type') || 'application/octet-stream', 'Cache-Control': 'no-store' },
+    headers: { 'Content-Type': up.headers.get('content-type') || 'application/octet-stream', 'Cache-Control': 'no-store', 'X-GN-Proxy': '1' },
   });
 }
 function jsonResponse(status, obj) {

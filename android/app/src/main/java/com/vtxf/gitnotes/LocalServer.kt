@@ -1016,6 +1016,7 @@ class LocalServer(private val context: Context) {
                 append("HTTP/1.1 ").append(code).append(' ').append(reasonOf(code)).append("\r\n")
                 append("Content-Type: ").append(ctype).append("\r\n")
                 append("Cache-Control: no-store\r\n")
+                append("X-GN-Proxy: 1\r\n")
                 append("Connection: close\r\n")
                 append("\r\n")
             }.toByteArray(Charsets.ISO_8859_1))

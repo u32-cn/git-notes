@@ -191,7 +191,8 @@ function aiTestConn() {
     if (r.ok) { out.textContent = '✓ 连接成功'; out.style.color = 'var(--accent)'; return null; }
     return r.text().catch(function () { return ''; }).then(function (t) {
       out.style.color = 'var(--danger)';
-      if (r.status === 404) { out.textContent = '✗ 本地服务缺少代理端点：请更新 git-notes 并重启服务'; return null; }
+      /* 代理响应带 X-GN-Proxy 标记：404 属上游（API 地址错，如缺 /v1）；无标记才是本地缺端点 */
+      if (r.status === 404 && !r.headers.get('X-GN-Proxy')) { out.textContent = '✗ 本地服务缺少代理端点：请更新 git-notes 并重启服务'; return null; }
       if (r.status === 502) { out.textContent = '✗ 无法连接 AI 服务（检查网络与 API 地址）'; return null; }
       out.textContent = r.status === 401 ? '✗ 鉴权失败：检查 API Key' : ('✗ HTTP ' + r.status + '：' + aiClip(String(t).replace(/\s+/g, ' '), 160));
       return null;
@@ -1190,7 +1191,7 @@ function aiChatStream(messages) {
   return aiUpstreamFetch({ url: c.baseURL + '/chat/completions', key: c.apiKey || '', body: chatBody }).then(function (res) {
     if (!res.ok) {
       return res.text().catch(function () { return ''; }).then(function (t) {
-        if (res.status === 404) {
+        if (res.status === 404 && !res.headers.get('X-GN-Proxy')) {
           var e404 = new Error('本地服务缺少 AI 代理端点（/api/ai/proxy）：请更新 git-notes 并重启服务');
           e404.status = 404;
           throw e404;

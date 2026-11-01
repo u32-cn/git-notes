@@ -1243,7 +1243,7 @@ async function aiProxy(res, body) {
   } catch (e) {
     throw httpError(502, '上游连接失败：' + e.message);
   }
-  res.writeHead(up.status, { 'Content-Type': up.headers.get('content-type') || 'application/octet-stream', 'Cache-Control': 'no-store' });
+  res.writeHead(up.status, { 'Content-Type': up.headers.get('content-type') || 'application/octet-stream', 'Cache-Control': 'no-store', 'X-GN-Proxy': '1' });
   if (!up.body) { res.end(); return; }
   Readable.fromWeb(up.body).on('error', () => res.destroy()).pipe(res);
 }
