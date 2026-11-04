@@ -1364,7 +1364,7 @@ async function httpRequestTool(body) {
 }
 
 /* ================= 联网搜索端点（AI 工具 web_search 的服务端执行器） =================
-   转发 Firecrawl Search API（https://api.firecrawl.dev/v2/search，对齐 vtxf-firecrawl-search 技能）。
+   转发 Firecrawl Search API（https://api.firecrawl.dev/v2/search）。
    默认匿名（keyless）调用，免费但有日配额；前端传入 api_key 时附 Bearer 头提升配额。
    本端点恒返回 200 JSON：{ ok:true, auth, results } 或 { ok:false, quota_exceeded, error }，
    由前端把配额问题转述为「引导用户提供 API Key」的话术。 */

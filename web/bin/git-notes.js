@@ -59,13 +59,17 @@ function staleCheck(info) {
 function openBrowser(url) {
   if (process.env.GN_NO_OPEN === '1') return;
   try {
+    /* 无桌面环境（无 xdg-open 等）时 spawn ENOENT 会触发 error 事件，静默吞掉避免崩 CLI */
+    let child;
     if (process.platform === 'win32') {
-      spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore' }).unref();
+      child = spawn('cmd', ['/c', 'start', '', url], { detached: true, stdio: 'ignore' });
     } else if (process.platform === 'darwin') {
-      spawn('open', [url], { detached: true, stdio: 'ignore' }).unref();
+      child = spawn('open', [url], { detached: true, stdio: 'ignore' });
     } else {
-      spawn('xdg-open', [url], { detached: true, stdio: 'ignore' }).unref();
+      child = spawn('xdg-open', [url], { detached: true, stdio: 'ignore' });
     }
+    child.on('error', () => {});
+    child.unref();
   } catch (_) {
     /* 打不开不影响服务 */
   }
