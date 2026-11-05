@@ -1,6 +1,6 @@
 # Git笔记 帮助文档
 
-![数据的掌控权必须留在本地](../web/assets/help-syc.png)
+![数据的掌控权必须留在本地](../web/assets/help-syc.jpg)
 
 > **"AI 时代，数据的掌控权必须留在本地，不被任何一家 SaaS 供应商绑定。"**
 
@@ -26,19 +26,19 @@ Git笔记是一款**本地优先**的微笔记应用：像发朋友圈一样随�
 
 ### 1. 存储自由，随时搬家
 
-![存储自由](../web/assets/help-store-free.png)
+![存储自由](../web/assets/help-store-free.jpg)
 
 远端仓库可以自建，也可以放到 GitHub、Gitee、阿里云云效等 git 服务商——这些服务的基础功能都是**免费**的。今天放 Gitee，明天想换 GitHub？改一下仓库地址就行，笔记一条不丢。没有任何一家能锁住你。
 
 ### 2. 数据在本地，AI 更友好
 
-![AI 友好](../web/assets/help-ai-friendly.png)
+![AI 友好](../web/assets/help-ai-friendly.jpg)
 
 数据锁在别人的云端，AI 想帮你检索、整理、总结都够不着。数据放在本地，AI 可以直接读取你的全部笔记——Git笔记内置 AI 助手，能帮你搜索、写笔记、批量整理、追溯历史，因为你的数据就在它手边。
 
 ### 3. 天然保留所有历史，随时追溯
 
-![git 历史](../web/assets/help-git-history.png)
+![git 历史](../web/assets/help-git-history.jpg)
 
 用 git 管理，意味着每一次修改、删除都有记录。写错了一段话？误删了一篇笔记？随时可以翻回去找回任何时间点的任何版本。这是普通笔记应用做不到的。
 

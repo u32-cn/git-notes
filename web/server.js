@@ -1420,7 +1420,7 @@ async function webSearchTool(body) {
 const CSP = "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'none'";
 
 /* 静态文件（仅 assets/ 与 js/ 两个白名单目录，防目录穿越） */
-const STATIC_TYPES = { '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8' };
+const STATIC_TYPES = { '.css': 'text/css; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.svg': 'image/svg+xml', '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.ico': 'image/x-icon' };
 function serveStatic(req, urlPath, res) {
   const rel = decodeURIComponent(urlPath.slice(1));
   if (!/^(assets|js)\/[A-Za-z0-9._-]+$/.test(rel)) { sendJson(res, 404, { error: 'not found' }); return; }

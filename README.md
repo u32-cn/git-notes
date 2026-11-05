@@ -2,7 +2,7 @@
 
 开源地址：<https://github.com/u32-cn/git-notes> · 官网地址：<https://git-notes.u32.cn/>
 
-![数据的掌控权必须留在本地](web/assets/help-syc.png)
+![数据的掌控权必须留在本地](web/assets/help-syc.jpg)
 
 > **"AI 时代，数据的掌控权必须留在本地，不被任何一家 SaaS 供应商绑定。"**
 
@@ -36,9 +36,9 @@
 
 <table>
 <tr>
-<td width="33%" align="center"><img src="web/assets/help-store-free.png" alt="存储自由" /><br><b>存储自由，随时搬家</b><br>远端可自建或放 GitHub / Gitee / 阿里云云效（均免费），换地址即搬家，零锁定</td>
-<td width="33%" align="center"><img src="web/assets/help-ai-friendly.png" alt="AI 友好" /><br><b>数据在本地，AI 更友好</b><br>内置 AI 助手直接读写本地笔记：检索、批量整理、找回历史版本</td>
-<td width="33%" align="center"><img src="web/assets/help-git-history.png" alt="git 历史" /><br><b>全量历史，随时追溯</b><br>每步操作都是 git 提交，误删可找回，任何版本可回看</td>
+<td width="33%" align="center"><img src="web/assets/help-store-free.jpg" alt="存储自由" /><br><b>存储自由，随时搬家</b><br>远端可自建或放 GitHub / Gitee / 阿里云云效（均免费），换地址即搬家，零锁定</td>
+<td width="33%" align="center"><img src="web/assets/help-ai-friendly.jpg" alt="AI 友好" /><br><b>数据在本地，AI 更友好</b><br>内置 AI 助手直接读写本地笔记：检索、批量整理、找回历史版本</td>
+<td width="33%" align="center"><img src="web/assets/help-git-history.jpg" alt="git 历史" /><br><b>全量历史，随时追溯</b><br>每步操作都是 git 提交，误删可找回，任何版本可回看</td>
 </tr>
 </table>
 
