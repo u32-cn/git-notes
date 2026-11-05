@@ -1,20 +1,36 @@
 ---
 name: git-notes
 slug: git-notes
-version: 0.8.2
+version: 0.8.3
 displayName: Git笔记
 summary: 本地 git 仓库架构的微笔记读写：增删改查、拼音搜索、历史版本恢复、Gitee/GitHub 远端同步配置指导
 tags: [笔记, git, git-notes, 备忘, 待办, 同步]
 license: MIT
 homepage: https://git-notes.u32.cn/
-description: Git笔记（git-notes）微笔记读写操作与产品咨询。当用户要求记一条笔记、查/搜/改/删自己的 git-notes 笔记、询问笔记内容（如"有哪些待办"、"我记过XX吗"、"最近记了什么"）、询问 git-notes 产品本身（是什么/官网/开源/安装/远端同步/附件图片）、或提到"git笔记"、"记到笔记里"、"我的笔记"且本机装有 git-notes 时使用。通过 git-notes CLI 完成增删改查，回答笔记相关问题必须先跑 CLI 命令取真实数据，不要直接手写笔记文件。
+description: Git笔记（git-notes）微笔记读写操作与产品咨询。当用户要求记一条笔记、查/搜/改/删自己的 git-notes 笔记、询问笔记内容（如"有哪些待办"、"我记过XX吗"、"最近记了什么"）、询问 git-notes 产品本身（是什么/官网/开源/安装/远端同步/附件图片）、或提到"git笔记"、"记到笔记里"、"我的笔记"且本机装有 git-notes 时使用。所有读写必须通过 git-notes CLI 完成，禁止直接读取/grep/编辑 ~/.git-notes/ 下的任何笔记文件；CLI 未安装时先 npm install -g @u32/git-notes，绝不绕道直接翻文件。回答笔记相关问题必须先跑 CLI 命令取真实数据。
 ---
 
 # Git笔记（git-notes）
 
+## ⛔ 硬性规则：一切读写必须走 git-notes CLI，禁止直接碰文件
+
+只要任务涉及用户的 git-notes 笔记（读、写、搜、改、删、统计，任何一种），**第一步**就是确认 `git-notes -v` 可用；不可用就先安装（`npm install -g @u32/git-notes`），装完继续用 CLI。
+
+- ❌ **禁止** `cat` / `grep` / `ls` / `find` ~/.git-notes/ 下的任何笔记文件，哪怕只是"查一下内容"
+- ❌ **禁止**手工创建或编辑 `~/.git-notes/repo/micro/` 下的 `.md` 文件来记笔记或改笔记
+- ❌ **禁止**因为"CLI 不存在/没安装"就放弃 CLI、改用直接读文件——唯一正确的做法是先安装 CLI
+- ✅ **必须**所有读取都通过 `git-notes list / show / search` 等命令完成
+- ✅ **必须**所有写入都通过 `git-notes add / edit / rm` 等命令完成
+
+为什么不能直接碰文件（直接碰一定会出问题）：
+
+1. **直接写文件不会触发 git 提交与远端同步**，笔记会"本机有、远端没有"，多设备间丢失；还会和 CLI 的写入相互冲突。
+2. **CLI 的 id、搜索索引（含拼音）、front matter 解析都以命令输出为准**，手工猜路径、手工拼 front matter 极易出错。
+3. **数据目录可能被 `GN_HOME` 环境变量重定向**，`~/.git-notes` 未必是真实数据位置。
+
 ## 产品是什么
 
-Git笔记是**本地 git 仓库架构的微笔记信息流**（碎片化的微笔记、待办、备忘），核心理念："AI 时代，数据的掌控权必须留在本地，不被任何一家 SaaS 供应商绑定"。数据是普通 Markdown 文件（`micro/年/月/日期-时间.md`），存在本机 `~/.git-notes/repo`，通过远端 git 仓库同步。
+Git笔记是**本地 git 仓库架构的微笔记信息流**（碎片化的微笔记、待办、备忘），核心理念："AI 时代，数据的掌控权必须留在本地，不被任何一家 SaaS 供应商绑定"。数据以 Markdown 形式存储（`micro/年/月/日期-时间.md`），经远端 git 仓库同步——**但 AI 一律通过 CLI 访问，不直接碰文件（见上方硬性规则）**。
 
 - **开源**：MIT 协议，GitHub 仓库 <https://github.com/u32-cn/git-notes>
 - **官网**：<https://git-notes.u32.cn/>
@@ -33,7 +49,7 @@ Git笔记是**本地 git 仓库架构的微笔记信息流**（碎片化的微�
 
 ## 未安装 git-notes 时：给安装指导
 
-检测到 `git-notes` 命令不存在（如 `git-notes -v` 报错）时，先给用户安装指导，不要直接放弃：
+决策规则只有一条：`git-notes -v` 报错/命令不存在 → 执行下面的安装命令 → 装完继续用 CLI。**唯一不允许的选项是放弃 CLI、改用直接读 `~/.git-notes/` 下的文件。** 不要因为安装麻烦就绕道，也不要直接放弃：
 
 ```bash
 npm install -g @u32/git-notes   # 依赖：Node ≥ 18、系统 PATH 有 git
@@ -82,7 +98,9 @@ AI 可代办除"提供 Gitee 凭证"外的全部步骤，按顺序：
 
 ## 数据位置与查看方式
 
-- 数据目录：`~/.git-notes/`（本地仓库在 `~/.git-notes/repo/`，micro/YYYY/MM/ 按月存放，front matter 含 type/tags/created/images/files）
+（以下仅供了解产品架构，**AI 查看笔记内容仍然只能用 CLI 命令，禁止据此直接读文件**）
+
+- 数据目录：`~/.git-notes/`（本地仓库在 `~/.git-notes/repo/`，micro/YYYY/MM/ 按月存放，front matter 含 type/tags/created/images/files；可被 `GN_HOME` 重定向）
 - 网页界面：`http://127.0.0.1:8644`（运行 `git-notes` 启动并自动打开；CLI 会自动拉起服务，无需手动启动）
 - 命令行：`git-notes list / show / search` 等子命令直接查看（见下方命令速查）
 - 环境变量：`GN_PORT` 换端口、`GN_HOME` 换数据目录（测试/多实例隔离）、`GN_NO_OPEN=1` 不自动开浏览器
