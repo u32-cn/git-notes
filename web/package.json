@@ -32,7 +32,8 @@
     "index.html",
     "help.html",
     "js/",
-    "assets/"
+    "assets/",
+    "skills/"
   ],
   "engines": {
     "node": ">=18"
