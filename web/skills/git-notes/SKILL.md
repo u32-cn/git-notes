@@ -14,7 +14,7 @@ description: Git笔记（git-notes）微笔记读写操作与产品咨询。当�
 
 ## ⛔ 硬性规则：一切读写必须走 git-notes CLI，禁止直接碰文件
 
-只要任务涉及用户的 git-notes 笔记（读、写、搜、改、删、统计，任何一种），**第一步**就是确认 `git-notes -v` 可用；不可用就先安装（`npm install -g @u32/git-notes`），装完继续用 CLI。
+只要任务涉及用户的 git-notes 笔记（读、写、搜、改、删、统计，任何一种），**第一步**就是确认 `git-notes -v` 可用：不可用就先安装、可用也先用 `npm install -g @u32/git-notes@latest` 更新到最新版（同一条命令兼顾安装与更新），然后继续用 CLI。
 
 - ❌ **禁止** `cat` / `grep` / `ls` / `find` ~/.git-notes/ 下的任何笔记文件，哪怕只是"查一下内容"
 - ❌ **禁止**手工创建或编辑 `~/.git-notes/repo/micro/` 下的 `.md` 文件来记笔记或改笔记
@@ -47,17 +47,33 @@ Git笔记是**本地 git 仓库架构的微笔记信息流**（碎片化的微�
 - **支持配图与任意附件**：每帖 ≤9 张图、≤9 个附件（单个 ≤10MB）；附件经界面一律以下载形式给出
 - **安全**：服务只绑 127.0.0.1，SSH 同步用专用密钥（不复用 `~/.ssh`），写路径白名单仅 `micro/` 与 `settings/`
 
-## 未安装 git-notes 时：给安装指导
+## 安装与更新
 
-决策规则只有一条：`git-notes -v` 报错/命令不存在 → 执行下面的安装命令 → 装完继续用 CLI。**唯一不允许的选项是放弃 CLI、改用直接读 `~/.git-notes/` 下的文件。** 不要因为安装麻烦就绕道，也不要直接放弃：
+决策规则只有一条：`git-notes -v` 报错/命令不存在 → 执行下面的安装命令；已安装 → 执行同一条命令更新到最新版 → 再继续用 CLI。**唯一不允许的选项是放弃 CLI、改用直接读 `~/.git-notes/` 下的文件。** 不要因为安装麻烦就绕道，也不要直接放弃：
 
 ```bash
-npm install -g @u32/git-notes   # 依赖：Node ≥ 18、系统 PATH 有 git
+npm install -g @u32/git-notes@latest   # 依赖：Node ≥ 18、系统 PATH 有 git；安装/更新都是这条命令
 ```
 
 安装完成后运行 `git-notes` 启动并完成首次初始化（见下方"注意事项"），之后即可正常读写。
 
-也可以从官网 <https://git-notes.u32.cn/> 下载 Windows 桌面版安装包（Electron GUI 应用）或 Android APK——但这两个版本没有 CLI，AI/skill 操控笔记只能装上面的 npm 包（Web 版）。
+## 桌面版与安卓版：AI 优先代办
+
+用户想要 Windows 桌面版或安卓版时，**AI 先自己动手安装，装不了或用户点名要手动操作才给手动指导**。注意：这两端是给人用的 GUI，**不含 CLI**——AI 自己读写笔记仍必须用上面的 npm 包 CLI。数据目录 `~/.git-notes` 三端共用，装完首次启动即可与已有数据同步，无需重新初始化。
+
+### Windows 桌面版（AI 代办，默认路径）
+
+1. 拉更新源 `https://u32.cn/bd/apps/git-notes/update/win/latest.yml`，取最新版 exe 的下载地址与版本号
+2. 下载 `git-notes-<版本>-setup.exe` 到临时目录（**不要放进任何 git 仓库**）
+3. 静默安装：`git-notes-<版本>-setup.exe /S`（NSIS 静默参数），装完运行 `git-notes -v` 或启动应用验证
+4. 第 1/2/3 步失败（下载失败、静默参数不被识别等）才退回手动指导：让用户从官网 <https://git-notes.u32.cn/> 下载安装包双击安装
+
+### Android 版（能代办则代办）
+
+1. 从官网 <https://git-notes.u32.cn/> 取 APK 下载地址，下载到本地临时目录
+2. 手机已连电脑且开了 USB 调试 → `adb install -r <apk路径>` 直接安装
+3. 无 adb 或未连设备 → 把 APK 下载到用户指定位置（或给出下载链接），请用户在手机上点开安装（此时才是手动）
+4. 安装后首次启动完成初始化/绑定远端即可与已有数据同步
 
 ## 远端绑定：先问用户选模式，绑定则优先 AI 代办
 
@@ -73,9 +89,10 @@ Git笔记两种模式：**仅本机使用**（数据只在本机，零配置）�
 ```mermaid
 flowchart TD
     A[任务涉及 git-notes 笔记] --> B{git-notes -v 可用?}
-    B -- 否 --> C[npm install -g @u32/git-notes<br>禁止绕道直接读文件]
+    B -- 否 --> C[npm install -g @u32/git-notes@latest<br>禁止绕道直接读文件]
     C --> D
-    B -- 是 --> D{仓库已初始化?}
+    B -- 是 --> C2[npm install -g @u32/git-notes@latest<br>更新到最新版再用]
+    C2 --> D{仓库已初始化?}
     D -- 否 --> E{询问用户: 仅本机 还是 绑定远端?}
     E -- 仅本机 --> F[git-notes init --local 或页面一键开始<br>流程结束]
     E -- 绑定远端 --> G{询问用户: AI代办 还是 手动配置?}
