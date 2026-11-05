@@ -114,6 +114,7 @@ async function pushWithRetry() {
 
 async function doSync() {
   if (!store.getConfig().remote) return { local: true, ahead: 0, behind: 0 };
+  await ensureUpstream();
   syncState.busy = true;
   syncState.lastError = '';
   try {
@@ -330,6 +331,7 @@ async function unbind() {
   if (stage() !== 'ready') throw appError(409, '当前未连接远端');
   const hasOrigin = (await git(['remote'])).stdout.split(/\r?\n/).includes('origin');
   if (hasOrigin) await gitOk(['remote', 'remove', 'origin']);
+  upstreamEnsured = false;
   syncState.conflict = null;
   store.saveConfig({ remote: '' });
 }
@@ -360,6 +362,28 @@ async function remoteOverwrite() {
 
 function ensureReady() {
   if (stage() !== 'ready' && stage() !== 'local') throw appError(409, '尚未完成首次配置');
+}
+
+/* 跟踪配置保证：有 origin 且 origin/main 引用存在时，确保 main 跟踪 origin/main（不依赖用户手动 -u）；
+   纯本机或远端引用未就位则静默跳过；任何失败只记日志，绝不抛错影响主流程 */
+let upstreamEnsured = false;
+async function ensureUpstream() {
+  if (upstreamEnsured) return;
+  try {
+    if (!hasRepo()) return;
+    const remotes = (await git(['remote'])).stdout.split(/\r?\n/);
+    if (!remotes.includes('origin')) return;
+    const cfgRemote = (await git(['config', 'branch.' + store.MAIN_BRANCH + '.remote'])).stdout.trim();
+    const cfgMerge = (await git(['config', 'branch.' + store.MAIN_BRANCH + '.merge'])).stdout.trim();
+    if (cfgRemote === 'origin' && cfgMerge) { upstreamEnsured = true; return; }
+    const hasRef = (await git(['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/' + store.MAIN_BRANCH])).code === 0;
+    if (!hasRef) return;
+    const r = await git(['branch', '--set-upstream-to=origin/' + store.MAIN_BRANCH, store.MAIN_BRANCH]);
+    if (r.code === 0) upstreamEnsured = true;
+    else console.error('[git-notes] 设置跟踪分支失败：' + (r.stderr || r.stdout).trim().split('\n')[0]);
+  } catch (e) {
+    console.error('[git-notes] ensureUpstream 异常：' + String(e.message || e));
+  }
 }
 
 /* ================= 写操作（路径白名单：micro/ 与 settings/tags.json） ================= */
@@ -709,27 +733,46 @@ async function fsMkdir(body) {
 }
 
 /* ---- 全量 git（面向 AI）：add 只收显式路径清单（不做 add -A / add .），提交/推拉/差异/分支/文件级恢复 ---- */
+/* gitStatus 只负责本地工作区状态（分支 + 未提交改动）；远端健康状态见 remoteStatus */
 async function gitStatus() {
   ensureReady();
+  await ensureUpstream();
   const r = await git(['status', '--porcelain=v1', '-b']);
   const lines = r.stdout.split(/\r?\n/).filter(Boolean);
-  let branch = '', upstream = '', ahead = 0, behind = 0;
+  let branch = '';
   const entries = [];
   for (const line of lines) {
     if (line.startsWith('## ')) {
-      const m = /^(\S+?)(?:\.\.\.(\S+))?(?:\s+\[(.*)\])?$/.exec(line.slice(3).trim());
-      if (m) {
-        branch = m[1];
-        upstream = m[2] || '';
-        const ab = /ahead (\d+)/.exec(m[3] || ''), bd = /behind (\d+)/.exec(m[3] || '');
-        ahead = ab ? parseInt(ab[1], 10) : 0;
-        behind = bd ? parseInt(bd[1], 10) : 0;
-      }
+      /* git refname 不允许出现 ".."，按首个空白分段再去掉 "...origin/main" 后缀即为分支名 */
+      branch = line.slice(3).trim().split(/\s/)[0].split('...')[0];
       continue;
     }
     entries.push({ x: line.slice(0, 1), y: line.slice(1, 2), path: line.slice(3) });
   }
-  return { branch, upstream, ahead, behind, entries, count: entries.length, clean: !entries.length };
+  return { branch, entries, count: entries.length, clean: !entries.length };
+}
+
+/* 远端健康状态（零网络操作，只读本地远端跟踪引用）：mode=local 未绑定远端；
+   tracking=ok 可比较 / gone 跟踪目标已失效（远端条目被删）/ unset 远端还没有 main 引用 */
+async function remoteStatus() {
+  ensureReady();
+  const remotes = (await git(['remote'])).stdout.split(/\r?\n/).filter(Boolean);
+  if (!remotes.includes('origin')) {
+    return { mode: 'local', remoteUrl: '', tracking: 'unset', ahead: 0, behind: 0 };
+  }
+  const remoteUrl = (await git(['config', '--get', 'remote.origin.url'])).stdout.trim();
+  const head = ((await git(['status', '--porcelain=v1', '-b'])).stdout.split(/\r?\n/).find(Boolean) || '').slice(3).trim();
+  const tail = head.includes(' ') ? head.slice(head.indexOf(' ')).trim() : '';
+  const gone = /\bgone\b/.test(tail);
+  const hasRef = (await git(['rev-parse', '--verify', '--quiet', 'refs/remotes/origin/' + store.MAIN_BRANCH])).code === 0;
+  const tracking = gone ? 'gone' : (hasRef ? 'ok' : 'unset');
+  let ahead = 0, behind = 0;
+  if (tracking === 'ok') {
+    const cnt = await gitOk(['rev-list', '--left-right', '--count', store.MAIN_BRANCH + '...origin/' + store.MAIN_BRANCH]);
+    const ab = cnt.stdout.trim().split(/\s+/).map(Number);
+    ahead = ab[0] || 0; behind = ab[1] || 0;
+  }
+  return { mode: 'ready', remoteUrl, tracking, ahead, behind };
 }
 async function gitAdd(body) {
   ensureReady();
@@ -765,6 +808,7 @@ async function gitPush() {
   ensureReady();
   if (!store.getConfig().remote) throw appError(409, '仅本机模式无远端可推送');
   if (syncState.busy || writeBusy) throw appError(409, '同步或写入进行中');
+  await ensureUpstream();
   return enqueueWrite(async () => {
     const r = await git(['push', 'origin', store.MAIN_BRANCH], { timeout: 300000 });
     if (r.code !== 0) throw new Error('推送失败：' + (r.stderr || r.stdout).trim().split('\n')[0]);
@@ -777,6 +821,7 @@ async function gitPull() {
   ensureReady();
   if (!store.getConfig().remote) throw appError(409, '仅本机模式无远端可拉取');
   if (syncState.busy || writeBusy) throw appError(409, '同步或写入进行中');
+  await ensureUpstream();
   return enqueueWrite(async () => {
     syncState.busy = true;
     syncState.lastError = '';
@@ -868,6 +913,6 @@ module.exports = {
   ensureReady, writePreSync, writePost, updatePost, deletePost, writeTags, setPin, writeMain,
   gitLog, gitShow, gitRestore,
   fsList, fsRead, fsWrite, fsDelete, fsMove, fsMkdir,
-  gitStatus, gitAdd, gitCommit, gitPush, gitPull, gitDiff, gitBranchOp, gitRestoreFiles,
+  gitStatus, remoteStatus, gitAdd, gitCommit, gitPush, gitPull, gitDiff, gitBranchOp, gitRestoreFiles,
   validAiConfig, readAiSettings, setAiSettings,
 };

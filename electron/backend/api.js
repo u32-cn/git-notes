@@ -189,6 +189,8 @@ async function route(method, pathname, query, body) {
     out = await git.fsMkdir(body);
   } else if (pathname === '/api/git/status' && method === 'GET') {
     out = await git.gitStatus();
+  } else if (pathname === '/api/git/remote' && method === 'GET') {
+    out = await git.remoteStatus();
   } else if (pathname === '/api/git/add' && method === 'POST') {
     out = await git.gitAdd(body);
   } else if (pathname === '/api/git/commit' && method === 'POST') {

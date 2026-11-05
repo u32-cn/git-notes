@@ -148,7 +148,8 @@ git-notes bind <远端地址>                          # 绑定远端仓库并�
 git-notes unbind [--yes]                           # 解绑回仅本机模式
 git-notes restore <id>                             # 列出该笔记的全部历史版本
 git-notes restore <id> <commit> [--yes]            # 查看/恢复历史版本（默认预览，--yes 才恢复）
-git-notes changes [--json]                         # 仓库状态（分支/领先落后/未提交改动）
+git-notes changes [--json]                         # 未提交改动清单（分支 + 变动文件）
+git-notes remote [--json]                          # 远端状态（是否绑定/跟踪健康/领先落后）
 git-notes diff [--stat] [--staged] [--from X --to Y] [--path <id>]   # 查看差异
 git-notes force-push [--yes]                       # 强制推送（本地为准，覆盖远端，破坏性）
 git-notes reset-to-remote [--yes]                  # 重置为远端版本（丢弃本地未推送，破坏性）

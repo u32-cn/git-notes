@@ -29,7 +29,8 @@
  * 历史与冲突子命令（转发本机服务 /api）：
  * git-notes restore <id>                               列出该笔记的全部历史版本
  * git-notes restore <id> <commit> [--yes]              查看/恢复历史版本（默认预览，--yes 才真正恢复）
- * git-notes changes [--json]                           查看仓库状态（分支/领先落后/未提交改动）
+ * git-notes changes [--json]                           查看未提交改动（分支 + 变动文件清单）
+ * git-notes remote [--json]                            查看远端状态（是否绑定/跟踪健康/领先落后）
  * git-notes diff [--stat] [--staged] [--from X --to Y] [--path <id>] [--json]   查看差异
  * git-notes force-push [--yes]                         强制推送（本地为准，覆盖远端历史，破坏性）
  * git-notes reset-to-remote [--yes]                    重置为远端版本（远端为准，丢弃本地未推送提交，破坏性）
@@ -469,9 +470,20 @@ async function cmdChanges(rest) {
   const { opt } = parseArgs(rest);
   const st = await api('GET', '/api/git/status');
   if (opt.json) return printJson(st);
-  console.log('分支 ' + st.branch + (st.upstream ? '（' + st.upstream + '）' : '') + (st.clean ? '：工作区干净' : '：' + st.count + ' 处未提交改动'));
-  if (st.ahead || st.behind) console.log('领先远端 ' + st.ahead + '，落后远端 ' + st.behind);
+  if (st.clean) return console.log('分支 ' + st.branch + '：工作区干净');
+  console.log('分支 ' + st.branch + '：' + st.count + ' 处未提交改动');
   for (const e of st.entries) console.log('  ' + e.x + e.y + ' ' + e.path);
+}
+
+async function cmdRemote(rest) {
+  const { opt } = parseArgs(rest);
+  const st = await api('GET', '/api/git/remote');
+  if (opt.json) return printJson(st);
+  if (st.mode === 'local') return console.log('未配置远端（仅本机模式）。绑定：git-notes bind <远端地址>');
+  console.log('远端 origin：' + st.remoteUrl);
+  if (st.tracking === 'gone') console.log('跟踪状态：失效（远端条目已不存在，请检查 remote 或重新 bind）');
+  else if (st.tracking === 'unset') console.log('跟踪状态：远端还没有 main 分支（首次 sync 会推送上去）');
+  else console.log('跟踪状态：正常（main → origin/main）' + ((st.ahead || st.behind) ? '，领先 ' + st.ahead + '，落后 ' + st.behind : '，与远端一致'));
   if (st.behind) console.log('落后远端时执行 git-notes sync 即可整合拉齐。');
 }
 
@@ -629,7 +641,7 @@ const SUBCOMMANDS = {
   pin: cmdPin, show: cmdShow, search: cmdSearch, tags: cmdTags,
   sync: cmdSync, log: cmdLog, doctor: cmdDoctor,
   key: cmdKey, bind: cmdBind, unbind: cmdUnbind,
-  restore: cmdRestore, changes: cmdChanges, diff: cmdDiff,
+  restore: cmdRestore, changes: cmdChanges, remote: cmdRemote, diff: cmdDiff,
   'force-push': cmdForcePush, 'reset-to-remote': cmdResetToRemote,
   init: cmdInit,
 };
@@ -668,7 +680,8 @@ const rest = process.argv.slice(3);
       '历史与冲突：',
       '  git-notes restore <id>                             列出该笔记的全部历史版本',
       '  git-notes restore <id> <commit> [--yes]            查看/恢复历史版本（默认预览，--yes 才恢复）',
-      '  git-notes changes [--json]                         仓库状态（分支/领先落后/未提交改动）',
+      '  git-notes changes [--json]                         未提交改动清单（分支 + 变动文件）',
+      '  git-notes remote [--json]                          远端状态（是否绑定/跟踪健康/领先落后）',
       '  git-notes diff [--stat] [--staged] [--from X --to Y] [--path <id>]   查看差异',
       '  git-notes force-push [--yes]                       强制推送（本地为准，覆盖远端，破坏性）',
       '  git-notes reset-to-remote [--yes]                  重置为远端版本（丢弃本地未推送，破坏性）',

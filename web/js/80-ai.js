@@ -647,7 +647,7 @@ var AI_TOOLS = [
     path: { type: 'string', description: '目录路径' }
   }, ['path']),
   /* ===== 全量 git 组 ===== */
-  aiTool('git_status', '查看笔记仓库工作区状态：当前分支、未跟踪/已修改/已暂存文件清单、领先落后远端提交数。', {}),
+  aiTool('git_status', '查看笔记仓库工作区状态：当前分支、未跟踪/已修改/已暂存文件清单。远端领先落后不在本工具，需向用户另行查询。', {}),
   aiTool('git_add', '把显式列出的文件路径加入暂存区（不做全仓 add；要提交全部就把清单列全）。', {
     paths: { type: 'array', items: { type: 'string' }, description: '要暂存的路径清单，最多 200 个' }
   }, ['paths']),
@@ -953,7 +953,7 @@ function tFsMkdir(a) {
 /* ===== 全量 git 执行器 ===== */
 function tGitStatus() {
   return api('GET', '/git/status').then(function (r) {
-    var head = '分支 ' + r.branch + (r.upstream ? '（跟踪 ' + r.upstream + (r.ahead ? '，领先 ' + r.ahead : '') + (r.behind ? '，落后 ' + r.behind : '') + '）' : '') + '，工作区' + (r.clean ? '干净' : '有 ' + r.count + ' 处变动') + '：';
+    var head = '分支 ' + r.branch + '，工作区' + (r.clean ? '干净' : '有 ' + r.count + ' 处变动') + '：';
     if (r.clean) return head + '\n（无变动）';
     var xName = { ' ': ' ', '?': '未跟踪', A: '新增', M: '已修改', D: '已删除', R: '重命名', C: '复制', U: '冲突' };
     var lines = r.entries.map(function (e) {
