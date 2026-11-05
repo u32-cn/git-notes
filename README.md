@@ -55,7 +55,7 @@ git-notes                 # 启动并打开 http://127.0.0.1:8644；status / sto
 - 安卓端：APK（Kotlin + JGit 移植同一套服务与界面，功能与 PC 版一致、可多端同步），见 `android/README.md`。
 - 首次打开页面出引导页：**「仅本机使用」**一键开始；或 **「从远端仓库克隆」**（填仓库地址；SSH 地址时程序自动生成专用 ed25519 密钥，把公钥贴到 git 服务器后重试克隆）。
 - 设置页「绑定远端」：随时把仅本机模式升级为多设备同步——填地址 → 探测 → 确认。远端为空仓则直接推送本地历史；远端已有笔记则提示合并预览（本地提交叠加到远端历史之上）；也可「解绑」回到仅本机（本地与远端数据都不动）。
-- 命令行笔记操作子命令：`list / add / edit / rm / pin / show / search / tags / sync / log / doctor`（`git-notes help` 查看用法），供人或外部 AI 工具读写，写操作提交信息带 `[ai]` 审计标记。
+- 命令行笔记操作子命令：`list / add / edit / rm / pin / show / search / tags / sync / log / doctor`（`git-notes help` 查看用法），供人或外部 AI 工具读写，写操作提交信息带 `[ai]` 审计标记；远端管理子命令：`key`（输出 SSH 公钥）/ `bind <地址>`（绑定远端并同步）/ `unbind`（解绑回仅本机）；历史与冲突子命令：`restore`（查看/恢复历史版本）/ `changes`（仓库状态）/ `diff` / `force-push`（本地为准）/ `reset-to-remote`（远端为准）；初始化子命令：`init --local` / `init <远端地址>`（无浏览器环境用）。
 
 ### 外部 AI 工具接入（三种方式任选）
 

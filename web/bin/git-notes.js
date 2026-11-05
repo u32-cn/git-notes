@@ -21,6 +21,23 @@
  * git-notes log [--limit N] [--path <笔记路径>]         查看提交历史
  * git-notes doctor [目录]                               校验笔记文件合规性（只读本地检查）
  *
+ * 远端管理子命令（绑定/解绑/公钥，转发本机服务 /api）：
+ * git-notes key                                        输出 SSH 公钥（贴到 Gitee/GitHub 的 SSH 设置）
+ * git-notes bind <远端地址> [--json]                    绑定远端 git 仓库（SSH/HTTPS/本地路径）并立即同步
+ * git-notes unbind [--yes]                             解绑远端回到仅本机模式（本地与远端数据都不动）
+ *
+ * 历史与冲突子命令（转发本机服务 /api）：
+ * git-notes restore <id>                               列出该笔记的全部历史版本
+ * git-notes restore <id> <commit> [--yes]              查看/恢复历史版本（默认预览，--yes 才真正恢复）
+ * git-notes changes [--json]                           查看仓库状态（分支/领先落后/未提交改动）
+ * git-notes diff [--stat] [--staged] [--from X --to Y] [--path <id>] [--json]   查看差异
+ * git-notes force-push [--yes]                         强制推送（本地为准，覆盖远端历史，破坏性）
+ * git-notes reset-to-remote [--yes]                    重置为远端版本（远端为准，丢弃本地未推送提交，破坏性）
+ *
+ * 初始化子命令（无浏览器环境时用）：
+ * git-notes init --local                               初始化本地仓库（仅本机模式）
+ * git-notes init <远端地址>                             从远端仓库克隆初始化（多设备同步）
+ *
  * id 为笔记路径（list/search 输出的 path 字段，如 micro/2026/11/20261105-123456.md）或裸文件名。
  * CLI 发起的写操作会在提交信息里带 [ai] 标记。
  *
@@ -234,6 +251,12 @@ function parseArgs(rest) {
     else if (a === '--limit') opt.limit = Number(rest[++i]) || undefined;
     else if (a === '--tag') opt.tag = String(rest[++i] || '');
     else if (a === '--path') opt.path = String(rest[++i] || '');
+    else if (a === '--commit') opt.commit = String(rest[++i] || '');
+    else if (a === '--from') opt.from = String(rest[++i] || '');
+    else if (a === '--to') opt.to = String(rest[++i] || '');
+    else if (a === '--stat') opt.stat = true;
+    else if (a === '--staged') opt.staged = true;
+    else if (a === '--local') opt.local = true;
     else pos.push(a);
   }
   return { pos, opt };
@@ -377,6 +400,146 @@ async function cmdLog(rest) {
   console.log(out.commits.map((c) => c.hash.slice(0, 8) + ' ' + c.date + ' ' + c.subject).join('\n') || '（无提交）');
 }
 
+/* ---- 远端管理：key / bind / unbind ---- */
+
+async function cmdKey() {
+  const out = await api('POST', '/api/setup/key', {});
+  if (parseArgs(process.argv.slice(3)).opt.json) return printJson(out);
+  console.log(out.pubKey);
+}
+
+async function cmdBind(rest) {
+  const { pos, opt } = parseArgs(rest);
+  const remote = pos.join(' ').trim();
+  if (!remote || /\s/.test(remote)) throw new Error('用法：git-notes bind <远端地址>（如 git@gitee.com:you/git-notes.git）');
+  await api('POST', '/api/bind/connect', { remote });
+  const out = await api('POST', '/api/sync');
+  if (opt.json) return printJson({ remote, sync: out });
+  console.log('已绑定：' + remote);
+  if (out.pushed !== false) console.log('首次同步完成（本地历史已推送）。');
+  console.log('之后每台设备安装 Git笔记并绑定同一地址即可自动同步。');
+}
+
+async function cmdUnbind(rest) {
+  const { opt } = parseArgs(rest);
+  if (!opt.yes) {
+    console.log('将解绑远端，回到仅本机模式（本地与远端数据都不动）。');
+    if (process.stdin.isTTY) {
+      process.stdout.write('确认解绑？[y/N] ');
+      const ok = await new Promise((resolve) => {
+        process.stdin.once('data', (d) => resolve(/^y/i.test(String(d).trim())));
+      });
+      if (!ok) return console.log('已取消。');
+    } else {
+      return console.log('已取消（非交互环境需加 --yes）。');
+    }
+  }
+  await api('POST', '/api/unbind', {});
+  console.log('已解绑，回到仅本机模式。');
+}
+
+/* ---- 历史与冲突：restore / changes / diff / force-push / reset-to-remote ---- */
+
+const COMMIT_RE = /^[0-9a-fA-F]{7,40}$/;
+
+async function cmdRestore(rest) {
+  const { pos, opt } = parseArgs(rest);
+  const rel = await resolveId(pos[0]);
+  const commit = opt.commit || pos[1];
+  if (!commit) {
+    /* 不带版本：列出该笔记的全部历史版本 */
+    const out = await api('GET', '/api/git/log?path=' + encodeURIComponent(rel) + '&limit=100');
+    if (!out.commits.length) return console.log('该笔记还没有提交历史。');
+    console.log(out.commits.map((c) => c.hash.slice(0, 8) + ' ' + c.date + ' ' + c.subject).join('\n'));
+    console.log('\n查看某版本内容：git-notes restore <id> ' + out.commits[0].hash.slice(0, 8) + '；确认无误加 --yes 恢复为当前版本。');
+    return;
+  }
+  if (!COMMIT_RE.test(commit)) throw new Error('commit 无效（7~40 位十六进制，取 restore <id> 列表里的 hash 前缀）');
+  if (!opt.yes) {
+    const f = await api('GET', '/api/git/show?path=' + encodeURIComponent(rel) + '&commit=' + encodeURIComponent(commit));
+    console.log(f.text);
+    console.log('\n（以上是 ' + commit.slice(0, 8) + ' 的历史版本内容，预览不改动；确认后加 --yes 恢复）');
+    return;
+  }
+  await api('POST', '/api/git/restore', { path: rel, commit, ai: true });
+  console.log('已恢复 ' + rel + ' 到版本 ' + commit.slice(0, 8) + '（已提交并同步）。');
+}
+
+async function cmdChanges(rest) {
+  const { opt } = parseArgs(rest);
+  const st = await api('GET', '/api/git/status');
+  if (opt.json) return printJson(st);
+  console.log('分支 ' + st.branch + (st.upstream ? '（' + st.upstream + '）' : '') + (st.clean ? '：工作区干净' : '：' + st.count + ' 处未提交改动'));
+  if (st.ahead || st.behind) console.log('领先远端 ' + st.ahead + '，落后远端 ' + st.behind);
+  for (const e of st.entries) console.log('  ' + e.x + e.y + ' ' + e.path);
+  if (st.behind) console.log('落后远端时执行 git-notes sync 即可整合拉齐。');
+}
+
+async function cmdDiff(rest) {
+  const { opt } = parseArgs(rest);
+  const qs = new URLSearchParams();
+  if (opt.from) qs.set('from', opt.from);
+  if (opt.to) qs.set('to', opt.to);
+  if (opt.staged) qs.set('mode', 'staged');
+  else if (opt.stat) qs.set('mode', 'stat');
+  if (opt.path) qs.set('path', await resolveId(opt.path));
+  const out = await api('GET', '/api/git/diff?' + qs.toString());
+  if (opt.json) return printJson(out);
+  console.log(out.text || '（无差异）');
+}
+
+async function confirmYes(opt, message) {
+  if (opt.yes) return;
+  console.log(message);
+  if (process.stdin.isTTY) {
+    process.stdout.write('确认执行？[y/N] ');
+    const ok = await new Promise((resolve) => {
+      process.stdin.once('data', (d) => resolve(/^y/i.test(String(d).trim())));
+    });
+    if (!ok) throw new Error('已取消。');
+  } else {
+    throw new Error('已取消（非交互环境需加 --yes）。');
+  }
+}
+
+async function cmdForcePush(rest) {
+  const { opt } = parseArgs(rest);
+  await confirmYes(opt, '将强制推送，用本地历史覆盖远端（远端上本地没有的提交将丢失，不可恢复）！');
+  await api('POST', '/api/force-push', {});
+  console.log('已强制推送（本地为准），冲突已清除。');
+}
+
+async function cmdResetToRemote(rest) {
+  const { opt } = parseArgs(rest);
+  await confirmYes(opt, '将把本地重置为远端版本（本地未推送的提交将丢失，不可恢复）！');
+  await api('POST', '/api/remote-overwrite', {});
+  console.log('已重置为远端版本（远端为准），冲突已清除。');
+}
+
+/* ---- 初始化：无浏览器环境时用 ---- */
+
+async function cmdInit(rest) {
+  const { pos, opt } = parseArgs(rest);
+  if (opt.local) {
+    await api('POST', '/api/setup/local', {});
+    console.log('已初始化本地仓库（仅本机模式）：' + REPO_DIR);
+    return;
+  }
+  const remote = pos.join(' ').trim();
+  if (!remote) throw new Error('用法：git-notes init --local（仅本机）或 git-notes init <远端地址>（克隆远端仓库）');
+  await api('POST', '/api/setup/clone', { remote });
+  for (;;) {
+    await sleep(1000);
+    const st = await api('GET', '/api/status');
+    if (!st.clone.active) {
+      if (st.clone.error) throw new Error('克隆失败：' + st.clone.error);
+      break;
+    }
+    process.stdout.write('\r克隆中：' + st.clone.phase + ' ' + (st.clone.progress || 0) + '%');
+  }
+  console.log('\n克隆完成：' + REPO_DIR + '，笔记已就绪。');
+}
+
 /* ---- doctor：纯本地文件合规检查（不经过服务，只读） ---- */
 
 function checkPostFile(abs, rel, issues) {
@@ -465,6 +628,10 @@ const SUBCOMMANDS = {
   list: cmdList, add: cmdAdd, edit: cmdEdit, rm: cmdRm, delete: cmdRm,
   pin: cmdPin, show: cmdShow, search: cmdSearch, tags: cmdTags,
   sync: cmdSync, log: cmdLog, doctor: cmdDoctor,
+  key: cmdKey, bind: cmdBind, unbind: cmdUnbind,
+  restore: cmdRestore, changes: cmdChanges, diff: cmdDiff,
+  'force-push': cmdForcePush, 'reset-to-remote': cmdResetToRemote,
+  init: cmdInit,
 };
 
 const arg = process.argv[2];
@@ -492,6 +659,23 @@ const rest = process.argv.slice(3);
       '  git-notes sync                                     手动同步（绑定远端时）',
       '  git-notes log [--limit N] [--path <笔记路径>]      查看提交历史',
       '  git-notes doctor [目录]                            校验笔记文件合规性（只读）',
+      '',
+      '远端管理：',
+      '  git-notes key                                      输出 SSH 公钥（贴到 Gitee/GitHub 的 SSH 设置）',
+      '  git-notes bind <远端地址>                          绑定远端 git 仓库并立即同步',
+      '  git-notes unbind [--yes]                           解绑回仅本机模式（本地与远端数据都不动）',
+      '',
+      '历史与冲突：',
+      '  git-notes restore <id>                             列出该笔记的全部历史版本',
+      '  git-notes restore <id> <commit> [--yes]            查看/恢复历史版本（默认预览，--yes 才恢复）',
+      '  git-notes changes [--json]                         仓库状态（分支/领先落后/未提交改动）',
+      '  git-notes diff [--stat] [--staged] [--from X --to Y] [--path <id>]   查看差异',
+      '  git-notes force-push [--yes]                       强制推送（本地为准，覆盖远端，破坏性）',
+      '  git-notes reset-to-remote [--yes]                  重置为远端版本（丢弃本地未推送，破坏性）',
+      '',
+      '初始化（无浏览器环境时）：',
+      '  git-notes init --local                             初始化本地仓库（仅本机模式）',
+      '  git-notes init <远端地址>                          从远端仓库克隆初始化（多设备同步）',
       '',
       '  id = 笔记路径（list/search 输出的 path，如 micro/2026/11/20261105-123456.md）或裸文件名',
       '  --json 输出原始 JSON（供程序/AI 解析）',

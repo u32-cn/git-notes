@@ -135,6 +135,16 @@ git-notes tags                                     # 列出全部标签
 git-notes sync                                     # 手动同步（绑定远端时）
 git-notes log [--limit N] [--path <笔记路径>]      # 查看提交历史
 git-notes doctor [目录]                            # 校验笔记文件合规性（只读）
+git-notes key                                      # 输出 SSH 公钥（贴到 Gitee/GitHub 的 SSH 设置）
+git-notes bind <远端地址>                          # 绑定远端 git 仓库并立即同步
+git-notes unbind [--yes]                           # 解绑回仅本机模式（本地与远端数据都不动）
+git-notes restore <id>                             # 列出该笔记的全部历史版本
+git-notes restore <id> <commit> [--yes]            # 查看/恢复历史版本（默认预览，--yes 才恢复）
+git-notes changes [--json]                         # 仓库状态（分支/领先落后/未提交改动）
+git-notes diff [--stat] [--staged] [--path <id>]   # 查看差异
+git-notes force-push [--yes]                       # 强制推送（本地为准，覆盖远端，破坏性）
+git-notes reset-to-remote [--yes]                  # 重置为远端版本（丢弃本地未推送，破坏性）
+git-notes init --local / init <远端地址>           # 无浏览器环境时初始化（仅本机 / 克隆远端）
 ```
 
 `<id>` = `list`/`search` 输出的 `path` 字段（如 `micro/2026/11/20261105-104144.md`），也可用裸文件名。加 `--json` 输出原始 JSON，供程序/AI 解析。
