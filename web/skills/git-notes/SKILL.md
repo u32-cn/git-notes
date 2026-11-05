@@ -1,7 +1,7 @@
 ---
 name: git-notes
 slug: git-notes
-version: 0.8.3
+version: 0.8.4
 displayName: Git笔记
 summary: 本地 git 仓库架构的微笔记读写：增删改查、拼音搜索、历史版本恢复、Gitee/GitHub 远端同步配置指导
 tags: [笔记, git, git-notes, 备忘, 待办, 同步]
