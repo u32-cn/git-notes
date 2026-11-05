@@ -420,3 +420,36 @@ main, .nav, .foot { position: relative; z-index: 1; }
   .foot { padding: 26px 20px 38px; }
   .foot-slogan { margin-left: 0; }
 }
+
+/* 使用 AI 安装弹窗 */
+.ai-modal-mask {
+  position: fixed; inset: 0; z-index: 999;
+  background: rgba(15, 22, 38, .45);
+  display: flex; align-items: center; justify-content: center;
+  padding: 20px;
+}
+.ai-modal {
+  position: relative; max-width: 520px; width: 100%;
+  background: #fff; border-radius: 18px; padding: 28px 26px 24px;
+  box-shadow: 0 24px 64px rgba(15, 22, 38, .25);
+}
+.ai-modal h3 { margin: 0 0 10px; font-size: 20px; color: var(--ink); }
+.ai-modal p { margin: 0 0 14px; font-size: 14.5px; color: var(--ink-2); line-height: 1.7; }
+.ai-copy-row {
+  display: flex; align-items: stretch; gap: 10px; margin-bottom: 14px;
+}
+.ai-copy-row code {
+  flex: 1; display: flex; align-items: center;
+  background: var(--accent-tint); border: 1px dashed var(--accent-graphic);
+  border-radius: 12px; padding: 12px 14px;
+  font-size: 14px; color: var(--ink); word-break: break-all; line-height: 1.6;
+}
+.ai-copy-row .btn { white-space: nowrap; }
+.ai-modal-tip { font-size: 13px !important; color: var(--ink-3) !important; margin-bottom: 0 !important; }
+.ai-modal-close {
+  position: absolute; top: 10px; right: 14px;
+  background: none; border: none; cursor: pointer;
+  font-size: 26px; line-height: 1; color: var(--ink-3); padding: 6px;
+}
+.ai-modal-close:hover { color: var(--ink); }
+.ai-modal-mask[hidden] { display: none; }

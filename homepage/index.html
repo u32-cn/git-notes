@@ -50,6 +50,10 @@
         <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M9 19c-4.3 1.4 -4.3 -2.5 -6 -3m12 5v-3.5c0 -1 .1 -1.4 -.5 -2c2.8 -.3 5.5 -1.4 5.5 -6a4.6 4.6 0 0 0 -1.3 -3.2a4.2 4.2 0 0 0 -.1 -3.2s-1.1 -.3 -3.5 1.3a12.3 12.3 0 0 0 -6.2 0c-2.4 -1.6 -3.5 -1.3 -3.5 -1.3a4.2 4.2 0 0 0 -.1 3.2a4.6 4.6 0 0 0 -1.3 3.2c0 4.6 2.7 5.7 5.5 6c-.6 .6 -.6 1.2 -.5 2v3.5"/></svg>
         GitHub 开源
       </a>
+      <button class="btn btn-soft" type="button" data-u32-name="hero-ai-install" id="ai-install-btn">
+        <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9z"/><path d="M19 15l.9 2.1L22 18l-2.1.9L19 21l-.9-2.1L16 18l2.1-.9z"/></svg>
+        使用 AI 安装
+      </button>
     </div>
     <div class="qr-note reveal" data-u32-name="qr-note">
       <div class="qr-canvas-wrap" data-u32-name="qr-canvas-wrap"><canvas id="qr-canvas" data-u32-name="qr-canvas" width="132" height="132" aria-label="Android 版下载二维码"></canvas><span class="qr-spin" data-u32-name="qr-spin" aria-hidden="true"></span></div>
@@ -357,6 +361,48 @@
   <span data-u32-name="foot-meta">本地优先的微笔记 · <a href="https://github.com/u32-cn/git-notes" target="_blank" rel="noopener">GitHub 开源</a> · <a href="https://u32.cn/" target="_blank" rel="noopener">u32.cn</a></span>
   <span class="foot-slogan" data-u32-name="foot-slogan">数据的掌控权，留在本地。</span>
 </footer>
+
+<div class="ai-modal-mask" id="ai-install-modal" hidden>
+  <div class="ai-modal" role="dialog" aria-modal="true" aria-labelledby="ai-modal-title">
+    <button class="ai-modal-close" type="button" id="ai-install-close" aria-label="关闭">&times;</button>
+    <h3 id="ai-modal-title">使用 AI 安装 Git笔记</h3>
+    <p>复制下面这句话，发给你的 AI 工具（例如 WorkBuddy、豆包、OpenCode 等）：</p>
+    <div class="ai-copy-row">
+      <code id="ai-install-text">读取git-notes.u32.cn/llms.txt，帮我安装Git笔记</code>
+      <button class="btn btn-accent btn-sm" type="button" id="ai-install-copy">复制</button>
+    </div>
+    <p class="ai-modal-tip">AI 会读取 llms.txt 找到技能说明书，自动安装并按规则使用。复制后粘贴到 AI 工具对话框发送即可。</p>
+  </div>
+</div>
+
+<script>
+  (function () {
+    var modal = document.getElementById('ai-install-modal');
+    var openBtn = document.getElementById('ai-install-btn');
+    var closeBtn = document.getElementById('ai-install-close');
+    var copyBtn = document.getElementById('ai-install-copy');
+    var textEl = document.getElementById('ai-install-text');
+    function open() { modal.hidden = false; }
+    function close() { modal.hidden = true; copyBtn.textContent = '复制'; }
+    openBtn.addEventListener('click', open);
+    closeBtn.addEventListener('click', close);
+    modal.addEventListener('click', function (e) { if (e.target === modal) close(); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !modal.hidden) close(); });
+    copyBtn.addEventListener('click', function () {
+      var text = textEl.textContent;
+      function done() { copyBtn.textContent = '已复制 ✓'; setTimeout(function () { copyBtn.textContent = '复制'; }, 2000); }
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(function () { fallback(); });
+      } else { fallback(); }
+      function fallback() {
+        var ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      }
+    });
+  })();
+</script>
 
 <script>
 //---------------------------------------------------------------------
