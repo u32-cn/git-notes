@@ -1,5 +1,12 @@
 ---
 name: git-notes
+slug: git-notes
+version: 0.8.1
+displayName: Git笔记
+summary: 本地 git 仓库架构的微笔记读写：增删改查、拼音搜索、历史版本恢复、Gitee/GitHub 远端同步配置指导
+tags: [笔记, git, git-notes, 备忘, 待办, 同步]
+license: MIT
+homepage: https://git-notes.u32.cn/
 description: Git笔记（git-notes）微笔记读写操作与产品咨询。当用户要求记一条笔记、查/搜/改/删自己的 git-notes 笔记、询问笔记内容（如"有哪些待办"、"我记过XX吗"、"最近记了什么"）、询问 git-notes 产品本身（是什么/官网/开源/安装/远端同步/附件图片）、或提到"git笔记"、"记到笔记里"、"我的笔记"且本机装有 git-notes 时使用。通过 git-notes CLI 完成增删改查，回答笔记相关问题必须先跑 CLI 命令取真实数据，不要直接手写笔记文件。
 ---
 
