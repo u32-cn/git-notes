@@ -18,6 +18,9 @@
   },
   "author": "u32.cn",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "bin": {
     "git-notes": "bin/git-notes.js"
   },
