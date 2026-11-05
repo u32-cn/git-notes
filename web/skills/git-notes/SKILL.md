@@ -1,7 +1,7 @@
 ---
 name: git-notes
 slug: git-notes
-version: 0.8.1
+version: 0.8.2
 displayName: Git笔记
 summary: 本地 git 仓库架构的微笔记读写：增删改查、拼音搜索、历史版本恢复、Gitee/GitHub 远端同步配置指导
 tags: [笔记, git, git-notes, 备忘, 待办, 同步]
@@ -20,6 +20,7 @@ Git笔记是**本地 git 仓库架构的微笔记信息流**（碎片化的微�
 - **官网**：<https://git-notes.u32.cn/>
 - **npm 包**：[`@u32/git-notes`](https://www.npmjs.com/package/@u32/git-notes)
 - **三端**：PC Web（Node CLI/服务）、Windows 桌面版（Electron，官网可下载）、Android APK；三端同一套界面与数据格式，可多端同步
+- **AI/skill 使用方式**：本 skill 通过 **npm 包（Web 版）的 CLI** 操控笔记——Windows 桌面版与 Android 版是给人用的 GUI，不含 CLI，AI 读写笔记必须安装 npm 包 `@u32/git-notes`（数据目录 `~/.git-notes` 三端共用）
 
 ### 特点
 
@@ -40,7 +41,7 @@ npm install -g @u32/git-notes   # 依赖：Node ≥ 18、系统 PATH 有 git
 
 安装完成后运行 `git-notes` 启动并完成首次初始化（见下方"注意事项"），之后即可正常读写。
 
-也可以从官网 <https://git-notes.u32.cn/> 下载 Windows 桌面版安装包（Electron GUI 应用）或 Android APK。
+也可以从官网 <https://git-notes.u32.cn/> 下载 Windows 桌面版安装包（Electron GUI 应用）或 Android APK——但这两个版本没有 CLI，AI/skill 操控笔记只能装上面的 npm 包（Web 版）。
 
 ## 未绑定远端时：指导配置 git 源（优先推荐 Gitee）
 
