@@ -13,7 +13,7 @@ Git笔记是一款**本地优先**的微笔记应用：像发朋友圈一样随�
 - **仅本机模式**：一个 `git init` 就开始用，零配置零依赖（只需 git），数据只在本机。
 - **绑定远端模式**：连接任意 git 服务器（SSH / HTTPS / 本地路径均可），自动同步，多设备共用一份笔记。
 
-支持 Windows（Web 版 / Windows 桌面版）以及 Android（安卓 APK）。Web 版目前仅用于测试，macOS / Linux 暂不支持。
+支持 Web 版（Windows / macOS / Linux，npm 安装，需 Node.js ≥18 和 git）、Windows 桌面版（安装包）以及 Android（安卓 APK）。三端同一套界面与数据格式，可多端同步。
 
 ## 核心特点
 
@@ -107,9 +107,23 @@ Git笔记是一款**本地优先**的微笔记应用：像发朋友圈一样随�
 
 | 版本 | 平台 | 获取方式 |
 |---|---|---|
-| Web 版 | Windows（当前仅用于测试；需 Node.js ≥18 和 git） | `cd web && npm i -g .`，命令行运行 `git-notes` |
+| Web 版 | Windows / macOS / Linux（需 Node.js ≥18 和 git） | `npm i -g @u32/git-notes`，命令行运行 `git-notes`；源码安装备选：`cd web && npm i -g .` |
 | 桌面版 | Windows | 运行安装包 `git-notes-x.x.x-setup.exe` |
 | 安卓版 | Android | 安装 APK |
+
+**Web 版（命令行）使用说明**：
+
+```bash
+git-notes            # 启动服务并自动打开 http://127.0.0.1:8644
+git-notes status     # 查看运行状态 / PID / 版本
+git-notes stop       # 停止后台服务
+git-notes -v         # 显示版本
+git-notes help       # 帮助
+```
+
+- 换端口：`GN_PORT=9000 git-notes`（默认 8644）；不想自动开浏览器：`GN_NO_OPEN=1 git-notes`。
+- 数据（本地仓库、SSH 密钥、日志）都在 `~/.git-notes`，卸载软件不影响数据。
+- 卸载：`npm uninstall -g @u32/git-notes`。若之后命令行仍能找到 `git-notes`，是残留的启动脚本，删除用户 npm 全局目录下的 `git-notes*` 文件即可。
 
 ### 第二步：选择模式
 
