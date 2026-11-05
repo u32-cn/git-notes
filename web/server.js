@@ -37,7 +37,8 @@ try {
 const PORT = Number(process.env.GN_PORT) || 8644;
 const HOST = '127.0.0.1';
 const INDEX = path.join(__dirname, 'index.html');
-const HOME_DIR = path.join(os.homedir(), '.git-notes');
+/* 数据目录：默认 ~/.git-notes，GN_HOME 可覆盖（测试/多实例隔离用） */
+const HOME_DIR = process.env.GN_HOME ? path.resolve(process.env.GN_HOME) : path.join(os.homedir(), '.git-notes');
 const KEY_DIR = path.join(HOME_DIR, 'keys');
 const KEY_FILE = path.join(KEY_DIR, 'id_ed25519');
 const PUB_FILE = KEY_FILE + '.pub';
@@ -1678,6 +1679,8 @@ async function route(req, res) {
 /* ================= 启动 ================= */
 
 const PID_FILE = path.join(HOME_DIR, 'git-notes.pid');
+/* CLI 同机调用 /api 用：页面凭证只经 Cookie 发给浏览器，token 落盘一份供本机 CLI 读取 */
+const TOKEN_FILE = path.join(HOME_DIR, 'git-notes.token');
 
 function cleanupPid() {
   try {
@@ -1719,6 +1722,7 @@ process.on('unhandledRejection', (e) => {
       version: VERSION,
       startedAt: new Date().toISOString(),
     }));
+    try { fs.writeFileSync(TOKEN_FILE, PAGE_TOKEN); } catch (_) { /* CLI 将无法调 /api，页面功能不受影响 */ }
     console.log(`[git-notes] v${VERSION} 服务已启动：http://${HOST}:${PORT}${config.remote ? '（远端 ' + config.remote + '）' : '（仅本机模式）'}`);
   });
 })();

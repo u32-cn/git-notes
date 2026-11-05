@@ -121,7 +121,27 @@ git-notes -v         # 显示版本
 git-notes help       # 帮助
 ```
 
-- 换端口：`GN_PORT=9000 git-notes`（默认 8644）；不想自动开浏览器：`GN_NO_OPEN=1 git-notes`。
+**笔记操作子命令**（人和 AI 工具都能用；写操作提交信息带 `[ai]` 标记）：
+
+```bash
+git-notes list [--limit N] [--tag 标签] [--json]   # 列出笔记（新→旧）
+git-notes add "<正文>" [--tag a,b] [--json]        # 新增笔记
+git-notes edit <id> "<新正文>" [--tag a,b]         # 编辑（不指定 --tag 保留原标签）
+git-notes rm <id> [--yes]                          # 删除（非交互环境必须加 --yes）
+git-notes pin <id> [--off]                         # 钉住 / 取消钉住
+git-notes show <id>                                # 查看笔记原文（Markdown）
+git-notes search "<关键词>" [--json]               # 全库搜索（支持拼音/首字母）
+git-notes tags                                     # 列出全部标签
+git-notes sync                                     # 手动同步（绑定远端时）
+git-notes log [--limit N] [--path <笔记路径>]      # 查看提交历史
+git-notes doctor [目录]                            # 校验笔记文件合规性（只读）
+```
+
+`<id>` = `list`/`search` 输出的 `path` 字段（如 `micro/2026/11/20261105-104144.md`），也可用裸文件名。加 `--json` 输出原始 JSON，供程序/AI 解析。
+
+**外部 AI 工具接入**：AI 工具（Claude Code、Cursor、ZCode 等）装好本技能后即可直接用上面的子命令读写笔记。通用 skills 安装器：`npx skills add u32-cn/git-notes`；或手动把仓库 `skills/git-notes/SKILL.md` 所在目录拷到对应工具的技能目录（如 `~/.agents/skills/git-notes/`、`~/.claude/skills/git-notes/`）。也可把 SKILL.md 内容贴进工具的 AGENTS.md / 系统提示词，效果等价。
+
+- 换端口：`GN_PORT=9000 git-notes`（默认 8644）；不想自动开浏览器：`GN_NO_OPEN=1 git-notes`；覆盖数据目录：`GN_HOME=<目录>`（测试/多实例隔离）。
 - 数据（本地仓库、SSH 密钥、日志）都在 `~/.git-notes`，卸载软件不影响数据。
 - 卸载：`npm uninstall -g @u32/git-notes`。若之后命令行仍能找到 `git-notes`，是残留的启动脚本，删除用户 npm 全局目录下的 `git-notes*` 文件即可。
 
