@@ -47,9 +47,8 @@
 ## 使用
 
 ```bash
-cd web
-npm i -g .          # 全局安装
-git-notes           # 启动并打开 http://127.0.0.1:8644；status / stop / -v / help
+npm i -g @u32/git-notes   # 从 npm 安装（或源码安装：cd web && npm i -g .）
+git-notes                 # 启动并打开 http://127.0.0.1:8644；status / stop / -v / help
 ```
 
 - 依赖：Node ≥ 18、系统 PATH 有 git（SSH 远端另需 ssh-keygen，Git for Windows 自带）。
@@ -88,7 +87,7 @@ web/server.js（Node ≥18 零 npm 依赖，spawn 系统 git）
 
 | 端 | 目录 | 说明 |
 |---|---|---|
-| PC Web | `web/` | Node ≥18 零 npm 依赖，`cd web && npm i -g .` 后运行 `git-notes` |
+| PC Web | `web/` | Node ≥18 零 npm 依赖，npm 包 [`@u32/git-notes`](https://www.npmjs.com/package/@u32/git-notes)，`npm i -g @u32/git-notes` 后运行 `git-notes` |
 | Android | `android/` | Kotlin + JGit 移植同一套服务与界面，构建见 `android/README.md` |
 | Windows 桌面 | `electron/` | Electron 纯单机（零端口零鉴权），`cd electron && npm i && npm run dist` |
 
