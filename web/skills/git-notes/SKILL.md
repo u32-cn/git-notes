@@ -59,15 +59,39 @@ npm install -g @u32/git-notes   # 依赖：Node ≥ 18、系统 PATH 有 git
 
 也可以从官网 <https://git-notes.u32.cn/> 下载 Windows 桌面版安装包（Electron GUI 应用）或 Android APK——但这两个版本没有 CLI，AI/skill 操控笔记只能装上面的 npm 包（Web 版）。
 
-## 未绑定远端时：指导配置 git 源（优先推荐 Gitee）
+## 远端绑定：先问用户选模式，绑定则优先 AI 代办
 
-Git笔记两种模式：**仅本机使用**（数据只在本机，零配置）与**绑定远端**（多设备同步 + 云端备份）。若用户有跨设备同步或备份需求（明确提到多设备、备份、换电脑），而笔记仓库尚未绑定远端（`git-notes sync` 提示未绑定），指导用户完成绑定，**优先推荐 Gitee**（国内访问快，免费私有仓）：
+Git笔记两种模式：**仅本机使用**（数据只在本机，零配置）与**绑定远端**（多设备同步 + 云端备份）。
 
-1. **送公钥**：在 Git笔记设置页点「查看公钥」，把公钥添加到 Gitee 的 SSH 公钥设置（Gitee → 设置 → SSH 公钥）。
-2. **建仓库**：在 Gitee 网页上新建一个**私有（Private）空仓库**（如 `git-notes`），不要初始化 README，复制 **SSH 地址**（形如 `git@gitee.com:用户名/git-notes.git`，⚠️ 不是 https 地址）。
-3. **粘贴连接**：把 SSH 地址贴进 Git笔记的绑定向导，点连接。远端为空仓则直接推送本地历史；之后每台设备重复同样操作即可自动同步。
+**仓库尚未绑定远端时（首次初始化或 `git-notes sync` 提示未绑定），必须先询问用户选哪种模式，禁止替用户默认：**
 
-任意 git 服务器均可（SSH/HTTPS/本地路径），GitHub、阿里云云效等也行；随时可在设置页换地址（搬家）或解绑回仅本机模式（本地与远端数据都不动）。
+- 选**仅本机使用** → 指导在初始化页点「仅本机使用」一键开始（或 `git-notes init --local`），流程结束。
+- 选**绑定远端** → **优先推荐用户让 AI 代办**：用户只需提供一个 Gitee 私人令牌，其余全部由 AI 完成；用户明确不同意 AI 代办时，才退回三步手动指导。远端**优先推荐 Gitee**（国内访问快，免费私有仓）。
+
+### 绑定全流程（mermaid 流程图，严格按此顺序执行）
+
+```mermaid
+flowchart TD
+    A[任务涉及 git-notes 笔记] --> B{git-notes -v 可用?}
+    B -- 否 --> C[npm install -g @u32/git-notes<br>禁止绕道直接读文件]
+    C --> D
+    B -- 是 --> D{仓库已初始化?}
+    D -- 否 --> E{询问用户: 仅本机 还是 绑定远端?}
+    E -- 仅本机 --> F[git-notes init --local 或页面一键开始<br>流程结束]
+    E -- 绑定远端 --> G{询问用户: AI代办 还是 手动配置?}
+    D -- 是 --> H{已绑定远端? git-notes sync 验证}
+    H -- 已绑定 --> I[正常读写笔记]
+    H -- 未绑定 --> G
+    G -- AI代办<br>推荐 --> J[用户只提供 Gitee 私人令牌]
+    J --> K[git-notes key 拿 SSH 公钥]
+    K --> L[调 Gitee API 幂等送公钥<br>GET/POST /user/keys]
+    L --> M[调 Gitee API 幂等建私有空仓<br>POST /user/repos]
+    M --> N[git-notes bind ssh_url<br>自动首次同步]
+    N --> O[git-notes sync 验证成功]
+    O --> I
+    G -- 不同意代办 --> P[手动三步指导<br>1 设置页查公钥贴到 Gitee<br>2 Gitee 建私有空仓复制 SSH 地址<br>3 地址贴进绑定向导点连接]
+    P --> I
+```
 
 ### 绑定相关 CLI 命令
 
@@ -77,11 +101,10 @@ git-notes bind <远端地址> [--json]   # 绑定远端仓库（SSH/HTTPS/本地
 git-notes unbind [--yes]             # 解绑回仅本机模式（本地与远端数据都不动）
 ```
 
-### 用户让 AI 代办配置时
+### AI 代办配置步骤（用户同意代办后按此顺序）
 
-AI 可代办除"提供 Gitee 凭证"外的全部步骤，按顺序：
+AI 可代办除"提供 Gitee 私人令牌"外的全部步骤，按顺序：
 
-0. **前置检查**：`git-notes -v` 不存在 → 先给安装指导并装好；`git-notes status` 未运行 → 启动；仓库未初始化 → 问用户选仅本机还是绑定远端，选绑定远端则走本流程（无需 init --local，绑定会建仓）。
 1. `git-notes key` 拿到 SSH 公钥。
 2. 向用户要 Gitee 私人令牌（Gitee → 设置 → 私人令牌，勾选 `projects` 与 `user_keys` 权限）。令牌属敏感信息，只在调用 API 时使用，不要写入任何文件或笔记。
 3. 用令牌调 Gitee API 完成远端两步（都做幂等检查，避免重复报错）：
