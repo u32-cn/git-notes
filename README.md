@@ -57,27 +57,30 @@ git-notes                 # 启动并打开 http://127.0.0.1:8644；status / sto
 - 设置页「绑定远端」：随时把仅本机模式升级为多设备同步——填地址 → 探测 → 确认。远端为空仓则直接推送本地历史；远端已有笔记则提示合并预览（本地提交叠加到远端历史之上）；也可「解绑」回到仅本机（本地与远端数据都不动）。
 - 命令行笔记操作子命令：`list / add / edit / rm / pin / show / search / tags / sync / log / doctor`（`git-notes help` 查看用法），供人或外部 AI 工具读写，写操作提交信息带 `[ai]` 审计标记；远端管理子命令：`key`（输出 SSH 公钥）/ `bind <地址>`（绑定远端并同步）/ `unbind`（解绑回仅本机）；历史与冲突子命令：`restore`（查看/恢复历史版本）/ `changes`（未提交改动清单）/ `remote`（远端状态）/ `diff` / `force-push`（本地为准）/ `reset-to-remote`（远端为准）；初始化子命令：`init --local` / `init <远端地址>`（无浏览器环境用）。
 
-### 外部 AI 工具接入（三种方式任选）
+### 外部 AI 工具接入
 
-随包分发 AI 技能说明书 `skills/git-notes/SKILL.md`，让 AI 工具（Claude Code、Cursor、ZCode 等）自动发现并按需调用上面的 CLI 子命令：
+**主推方式（对外部 AI 工具统一使用这句话）**：
+
+```
+请读取git-notes.u32.cn/llms.txt，帮我安装Git笔记和它的技能。
+```
+
+AI 工具读取 [llms.txt](https://git-notes.u32.cn/llms.txt) 后会找到技能说明书 [SKILL.md](https://git-notes.u32.cn/skill/SKILL.md)，按其中步骤安装 npm 包 `@u32/git-notes` 并按规则使用 CLI 读写笔记。
+
+其余方式任选：
 
 ```bash
-# 方式一：GitHub 安装（主推，最短路径）
+# 方式一：GitHub 安装（装成 AI 工具的本地技能）
 npx skills add u32-cn/git-notes -g
-
-# 方式二：npm 包内路径安装（已装 npm 包、不依赖 GitHub）
-npx skills add "$(npm root -g)/@u32/git-notes/skills/git-notes" -g
-# Windows cmd 写法：
-npx skills add "%APPDATA%\npm\node_modules\@u32\git-notes\skills\git-notes" -g
 ```
 
-**方式三：直读模式（不装 skill，零拷贝）**：在 AI 工具的 AGENTS.md / 系统提示词里写一行指针，AI 需要时直接读包内的 SKILL.md 并照做：
+**方式二：直读模式（不装 skill，零拷贝）**：在 AI 工具的 AGENTS.md / 系统提示词里写一行指针，AI 需要时直接读网站上的 SKILL.md 并照做：
 
 ```
-可用技能 git-notes：先读 <全局包目录>/node_modules/@u32/git-notes/skills/git-notes/SKILL.md，按其中命令操作笔记
+可用技能 git-notes：先读 https://git-notes.u32.cn/skill/SKILL.md，按其中步骤安装并操作笔记
 ```
 
-取舍：方式一/二获得自动发现与渐进加载（装到 `~/.agents/skills/` 等标准目录的是快照，npm 升级后重跑安装即更新）；方式三零拷贝、npm 升级即最新，但指针每个工具写一次、该行常驻注入上下文。
+取舍：方式一获得自动发现与渐进加载（装到 `~/.agents/skills/` 等标准目录的是快照，技能更新后重跑安装即更新）；直读模式零拷贝、官网发布即最新，但指针每个工具写一次、该行常驻注入上下文。
 
 ## 同步与冲突策略
 

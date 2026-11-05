@@ -60,11 +60,10 @@
 
     <h4 data-u32-name="help-h-cli">命令行与外部 AI 工具</h4>
     <p>Web 版命令 <code>git-notes</code> 除启动/停止服务外，还提供笔记操作子命令（写操作提交信息带 <code>[ai]</code> 审计标记）：<code>list</code> / <code>add</code> / <code>edit</code> / <code>rm</code> / <code>pin</code> / <code>show</code> / <code>search</code> / <code>tags</code> / <code>sync</code> / <code>log</code> / <code>doctor</code>，加 <code>--json</code> 输出原始 JSON。完整用法见 <code>git-notes help</code>。</p>
-    <p>外部 AI 工具（Claude Code、Cursor、ZCode 等）装好技能说明书后即可自动发现并直接用这些子命令读写你的笔记，三种方式任选：</p>
+    <p>外部 AI 工具（Claude Code、Cursor、ZCode 等）装好技能说明书后即可自动发现并直接用这些子命令读写你的笔记。主推方式——对外部 AI 工具统一使用这句话：<code>请读取git-notes.u32.cn/llms.txt，帮我安装Git笔记和它的技能。</code>（AI 读 llms.txt 找到技能说明书 <code>git-notes.u32.cn/skill/SKILL.md</code>，按其中步骤安装 npm 包并按规则使用 CLI。）</p>
     <ul>
-      <li><strong>GitHub 安装</strong>（主推）：<code>npx skills add u32-cn/git-notes -g</code></li>
-      <li><strong>npm 包内路径安装</strong>：<code>npx skills add "$(npm root -g)/@u32/git-notes/skills/git-notes" -g</code>（Windows cmd：<code>npx skills add "%APPDATA%\npm\node_modules\@u32\git-notes\skills\git-notes" -g</code>）</li>
-      <li><strong>直读模式</strong>（零拷贝）：在工具的 AGENTS.md / 系统提示词里写一行指针，让 AI 直接读包内的 <code>skills/git-notes/SKILL.md</code> 并照做——npm 升级即最新，但指针每个工具要写一次。</li>
+      <li><strong>GitHub 安装</strong>（装成本地技能）：<code>npx skills add u32-cn/git-notes -g</code></li>
+      <li><strong>直读模式</strong>（零拷贝）：在工具的 AGENTS.md / 系统提示词里写一行指针，让 AI 直接读 <code>https://git-notes.u32.cn/skill/SKILL.md</code> 并照做——官网发布即最新，但指针每个工具要写一次。</li>
     </ul>
 
     <h4 data-u32-name="help-h-start">快速上手：绑定远端三步走</h4>

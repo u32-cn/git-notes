@@ -1,0 +1,16 @@
+# Git笔记（git-notes）
+
+> Git笔记是本地 git 仓库架构的微笔记信息流（碎片化微笔记、待办、备忘），数据以 Markdown 存于本地 git 仓库，可经远端 git 服务器多端同步。提供 CLI 子命令（list / add / edit / rm / search / sync 等）供人与外部 AI 工具读写笔记。开源（MIT），npm 包 `@u32/git-notes`，官网 https://git-notes.u32.cn/ 。
+
+如果你是 AI 工具（Claude Code、Cursor、ZCode 等），要为用户安装 Git笔记及其技能，标准入口如下：
+
+- [SKILL.md](https://git-notes.u32.cn/skill/SKILL.md)：AI 技能说明书。**先读取此文件**，按其中步骤安装 npm 包 `@u32/git-notes` 并严格按其规则使用 git-notes CLI 读写笔记（一切读写必须走 CLI，禁止直接翻 `~/.git-notes/` 文件）。也可用 `npx skills add u32-cn/git-notes -g` 把技能安装到本地 AI 工具。
+
+给用户的一句话用法：「请读取git-notes.u32.cn/llms.txt，帮我安装Git笔记和它的技能。」
+
+## 文档
+
+- [官网首页](https://git-notes.u32.cn/)：产品介绍与三端下载
+- [SKILL.md](https://git-notes.u32.cn/skill/SKILL.md)：AI 技能说明书（安装与使用规则）
+- [npm 包 @u32/git-notes](https://www.npmjs.com/package/@u32/git-notes)：CLI 与 Web 版（`npm i -g @u32/git-notes`）
+- [GitHub 仓库 u32-cn/git-notes](https://github.com/u32-cn/git-notes)：源码与 README

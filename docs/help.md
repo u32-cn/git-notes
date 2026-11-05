@@ -150,25 +150,30 @@ git-notes init --local / init <远端地址>           # 无浏览器环境时�
 
 `<id>` = `list`/`search` 输出的 `path` 字段（如 `micro/2026/11/20261105-104144.md`），也可用裸文件名。加 `--json` 输出原始 JSON，供程序/AI 解析。
 
-**外部 AI 工具接入（三种方式任选）**：随包分发 AI 技能说明书（`skills/git-notes/SKILL.md`），AI 工具（Claude Code、Cursor、ZCode 等）装好后即可自动发现并直接用上面的子命令读写笔记。
+**外部 AI 工具接入**：AI 工具（Claude Code、Cursor、ZCode 等）装好技能说明书后即可自动发现并直接用上面的子命令读写笔记。
+
+**主推方式（对外部 AI 工具统一使用这句话）**：
+
+```
+请读取git-notes.u32.cn/llms.txt，帮我安装Git笔记和它的技能。
+```
+
+AI 工具读取 llms.txt 后会找到技能说明书 SKILL.md（https://git-notes.u32.cn/skill/SKILL.md），按其中步骤安装 npm 包 `@u32/git-notes` 并按规则使用 CLI 读写笔记。
+
+其余方式任选：
 
 ```bash
-# 方式一：GitHub 安装（主推，最短路径）
+# 方式一：GitHub 安装（装成 AI 工具的本地技能）
 npx skills add u32-cn/git-notes -g
-
-# 方式二：npm 包内路径安装（已装 npm 包、不依赖 GitHub）
-npx skills add "$(npm root -g)/@u32/git-notes/skills/git-notes" -g
-# Windows cmd 写法：
-npx skills add "%APPDATA%\npm\node_modules\@u32\git-notes\skills\git-notes" -g
 ```
 
-**方式三：直读模式（不装 skill，零拷贝）**：在 AI 工具的 AGENTS.md / 系统提示词里写一行指针，让 AI 需要时直接读包内的 SKILL.md 并照做：
+**方式二：直读模式（不装 skill，零拷贝）**：在 AI 工具的 AGENTS.md / 系统提示词里写一行指针，让 AI 需要时直接读网站上的 SKILL.md 并照做：
 
 ```
-可用技能 git-notes：先读 <全局包目录>/node_modules/@u32/git-notes/skills/git-notes/SKILL.md，按其中命令操作笔记
+可用技能 git-notes：先读 https://git-notes.u32.cn/skill/SKILL.md，按其中步骤安装并操作笔记
 ```
 
-取舍：方式一/二获得自动发现与渐进加载（装到 `~/.agents/skills/` 等标准目录的是快照，npm 升级后重跑安装即更新）；方式三零拷贝、npm 升级即最新，但指针每个工具写一次、该行常驻注入上下文。
+取舍：方式一获得自动发现与渐进加载（装到 `~/.agents/skills/` 等标准目录的是快照，技能更新后重跑安装即更新）；直读模式零拷贝、官网发布即最新，但指针每个工具写一次、该行常驻注入上下文。
 
 - 换端口：`GN_PORT=9000 git-notes`（默认 8644）；不想自动开浏览器：`GN_NO_OPEN=1 git-notes`；覆盖数据目录：`GN_HOME=<目录>`（测试/多实例隔离）。
 - 数据（本地仓库、SSH 密钥、日志）都在 `~/.git-notes`，卸载软件不影响数据。
