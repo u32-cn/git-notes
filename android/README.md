@@ -18,7 +18,7 @@ gradlew.bat assembleRelease
 - 版本号自动取 `../web/package.json` 的 `version`；versionCode 为日期型（同日可覆盖安装）。
 - `web/index.html` 改动后**必须重新构建 APK**（assets 是构建时拷贝，不存在"改文件即生效"）。
 - 改 `web/server.js` 的路由/git 行为后，**必须同步修改 LocalServer.kt / GitRepo.kt**（双端语义零分叉是硬约束）。
-- 签名：`keystore.jks`（自签名，仓库内保存，口令在 `gradle.properties`）；**丢失则无法升级安装**，只能卸载重装（数据即 `~/.git-notes`，远端有备份则无损）。
+- 签名：`keystore.jks`（自签名，**不入 git**，网盘 private 有备份；口令在 gitignored 的 `local.properties`）；**丢失则无法升级安装**，只能卸载重装（数据即 `~/.git-notes`，远端有备份则无损）。
 
 ## 与 PC 版的语义对齐清单（改动必守）
 
