@@ -140,9 +140,9 @@ async function route(method, pathname, query, body) {
   } else if (pathname === '/api/tags' && method === 'PUT') {
     if (git.syncState.busy || git.isWriteBusy()) throw store.appError(409, '已有写操作进行中，请稍候');
     out = await git.enqueueWrite(() => git.writeTags(body.tags, body.action, body.tag));
-  } else if (pathname === '/api/search' && method === 'GET') {
+  } else if (pathname === '/api/feed' && method === 'GET') {
     git.ensureReady();
-    out = store.searchAll(query.get('q') || '');
+    out = store.feedPage(query);
   } else if (pathname === '/api/git/log' && method === 'GET') {
     git.ensureReady();
     out = await git.gitLog({ limit: query.get('limit'), path: query.get('path') || '' });

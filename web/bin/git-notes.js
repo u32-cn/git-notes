@@ -373,11 +373,11 @@ async function cmdSearch(rest) {
   const { pos, opt } = parseArgs(rest);
   const q = pos.join(' ');
   if (!q) throw new Error('用法：git-notes search "<关键词>"');
-  const out = await api('GET', '/api/search?q=' + encodeURIComponent(q));
+  const out = await api('GET', '/api/feed?q=' + encodeURIComponent(q) + '&limit=500');
   if (opt.json) return printJson(out);
-  if (!out.hits.length) return console.log('（无命中）');
-  console.log(out.hits.map(fmtPost).join('\n'));
-  console.log(`共 ${out.hits.length} 条命中（全库 ${out.total} 篇，${out.ms}ms）`);
+  if (!out.items.length) return console.log('（无命中）');
+  console.log(out.items.map(fmtPost).join('\n'));
+  console.log(`共 ${out.items.length} 条命中（全库 ${out.total} 篇）`);
 }
 
 async function cmdTags(rest) {

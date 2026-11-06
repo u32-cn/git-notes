@@ -220,7 +220,12 @@ function pagePosts(before) {
 const { buildCharPinyin } = require('./pinyin-data');
 const charPinyin = buildCharPinyin();
 const pyCache = new Map();
-function clearPyCache() { pyCache.clear(); }
+const feedCache = new Map();   /* /api/feed 过滤结果缓存：key(JSON) -> { paths, at }（对齐 web/server.js） */
+const FEED_CACHE_MAX = 20;
+function clearPyCache() {
+  pyCache.clear();
+  feedCache.clear();   /* 写/同步后过滤结果缓存整体失效（失效点与拼音索引一致，全覆盖） */
+}
 function pyIndexOf(p) {
   let e = pyCache.get(p.path);
   if (e) return e;
@@ -236,26 +241,66 @@ function pyIndexOf(p) {
   return e;
 }
 
-function searchAll(q) {
-  const t0 = Date.now();
-  const terms = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
-  if (!terms.length) return { hits: [], total: 0, ms: 0 };
-  const hits = [];
-  let total = 0;
-  const LIMIT = 200;
+/* ================= 统一信息流读接口：/api/feed（对齐 web/server.js） =================
+   一切视图皆过滤，浏览 = 空条件：{q, tag, from, to} 全部在服务端全库过滤，
+   命中清单（新→旧 path 数组）按 offset/limit 切片返回；缓存只存 path，
+   切片直读主数据取最新；写/同步经 clearPyCache 一并整体失效。 */
+function feedFilters(query) {
+  function s(k) { return String(query.get(k) || '').trim(); }
+  const f = { q: s('q'), tag: s('tag'), from: s('from'), to: s('to') };
+  if (f.from && !/^\d{4}-\d{2}-\d{2}$/.test(f.from)) f.from = '';
+  if (f.to && !/^\d{4}-\d{2}-\d{2}$/.test(f.to)) f.to = '';
+  return f;
+}
+function feedFilterAll(f) {
+  const key = JSON.stringify(f);
+  const hit = feedCache.get(key);
+  if (hit) { hit.at = Date.now(); return hit.paths; }
+  const terms = f.q.toLowerCase().split(/\s+/).filter(Boolean);
+  const from = f.from ? f.from.replace(/-/g, '') : '';
+  const to = f.to ? f.to.replace(/-/g, '') : '';
+  const paths = [];
   for (const ym of listMonths()) {
     for (const p of listPosts(ym)) {
-      total++;
-      const hay = (p.text + '\n' + p.tags.join(' ')).toLowerCase();
-      const py = pyIndexOf(p);
-      if (!terms.every((t) => hay.indexOf(t) > -1 || py.full.indexOf(t) > -1 || py.initials.indexOf(t) > -1)) continue;
-      hits.push(p);
-      if (hits.length >= LIMIT) break;
+      if (f.tag && p.tags.indexOf(f.tag) === -1) continue;
+      const day = (p.stem || p.created || '').slice(0, 8);
+      if ((from || to) && /^\d{8}$/.test(day)) {
+        if (from && day < from) continue;
+        if (to && day > to) continue;
+      }
+      if (terms.length) {
+        const hay = (p.text + '\n' + p.tags.join(' ')).toLowerCase();
+        const py = pyIndexOf(p);
+        if (!terms.every((t) => hay.indexOf(t) > -1 || py.full.indexOf(t) > -1 || py.initials.indexOf(t) > -1)) continue;
+      }
+      paths.push(p.path);
     }
-    if (hits.length >= LIMIT) break;
   }
-  return { hits, total, ms: Date.now() - t0 };
+  feedCache.set(key, { paths, at: Date.now() });
+  while (feedCache.size > FEED_CACHE_MAX) {
+    let oldest = null, ot = Infinity;
+    for (const [k, v] of feedCache) { if (v.at < ot) { ot = v.at; oldest = k; } }
+    feedCache.delete(oldest);
+  }
+  return paths;
 }
+function feedPage(query) {
+  const f = feedFilters(query);
+  let offset = parseInt(query.get('offset') || '0', 10);
+  let limit = parseInt(query.get('limit') || '200', 10);
+  if (!Number.isFinite(offset) || offset < 0) offset = 0;
+  if (!Number.isFinite(limit) || limit < 1) limit = 200;
+  if (limit > 500) limit = 500;   /* 钳制上限：分页不可被单个请求绕过 */
+  const paths = feedFilterAll(f);
+  const pins = readMain().pins
+    .map((p) => { try { return fs.existsSync(path.join(REPO_DIR, p)) ? readPost(p) : null; } catch (_) { return null; } })
+    .filter(Boolean);
+  const items = paths.slice(offset, offset + limit)
+    .map((p) => { try { return readPost(p); } catch (_) { return null; } })
+    .filter(Boolean);
+  return { items, total: paths.length, pins };
+}
+
 /* ================= 仓库统一设置 settings/main.json（version:1，收编原 tags.json/ai.json；对齐 server.js） =================
    读不到就创建；旧 settings/tags.json 与 settings/ai.json 在首次读取时一次性收编进 main.json
    （只迁数据不提交，提交随下一次设置写操作落地），此后只认 main.json，version!==1 拒读走默认。 */
@@ -317,6 +362,6 @@ module.exports = {
   saveConfig, getConfig: () => config, MAIN_BRANCH, isSshRemote,
   pad2, tsOf, createdStr, summarize, buildMicroMd, parsePost, readPost,
   appError, assertPostPath, validTags, validImages, sanitizeFileName, validFiles,
-  listMonths, monthHasPosts, listPosts, pagePosts, searchAll, readTags, clearPyCache,
+  listMonths, monthHasPosts, listPosts, pagePosts, feedPage, readTags, clearPyCache,
   validAiConfig, defaultMain, writeMainRaw, normalizeMain, readMain,
 };

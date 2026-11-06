@@ -394,12 +394,13 @@ class LocalServer(private val context: Context) {
                 JSONObject().put("tags", JSONArray(repo.writeTags(body?.optJSONArray("tags"), body?.optString("action"), body?.optString("tag"))))
             }
 
-            path == "/api/search" && req.method == "GET" -> {
+            path == "/api/feed" && req.method == "GET" -> {
                 repo.ensureReady()
-                val r = repo.searchAll(query["q"] ?: "")
+                val r = repo.feedPage(query)
                 JSONObject()
-                    .put("hits", JSONArray().apply { r.hits.forEach { put(it.toJson()) } })
-                    .put("total", r.total).put("ms", r.ms)
+                    .put("items", JSONArray().apply { r.items.forEach { put(it.toJson()) } })
+                    .put("total", r.total)
+                    .put("pins", JSONArray().apply { r.pins.forEach { put(it.toJson()) } })
             }
 
             // git 历史三端点（AI 工具）：只读查阅 / 时点读取 / 恢复=新提交
