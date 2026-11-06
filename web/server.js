@@ -1232,7 +1232,10 @@ function pagePosts(before) {
    每帖缓存 {full: 全拼串, initials: 首字母串}：汉字转音节、其余字符原样保留。
    写操作与同步后清缓存（内容可能已变）。 */
 const pyCache = new Map();
-function clearPyCache() { pyCache.clear(); }
+function clearPyCache() {
+  pyCache.clear();
+  feedCache.clear();   /* 写/同步后过滤结果缓存整体失效（失效点与拼音索引一致，全覆盖） */
+}
 function pyIndexOf(p) {
   let e = pyCache.get(p.path);
   if (e) return e;
@@ -1248,25 +1251,73 @@ function pyIndexOf(p) {
   return e;
 }
 
-function searchAll(q) {
-  const t0 = Date.now();
-  const terms = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
-  if (!terms.length) return { hits: [], total: 0, ms: 0 };
-  const hits = [];
-  let total = 0;
-  const LIMIT = 200;
+/* ================= 统一信息流读接口：/api/feed =================
+   一切视图皆过滤，浏览 = 空条件：前端把 {q, tag, from, to} 全部交给服务端，
+   在全库上依次套用（关键词含拼音/首字母、标签、时间段），得到新→旧完整命中
+   清单后按 offset/limit 切片返回。渲染与所有写操作（编辑/删除/钉住/待办）都
+   只认这份结果，不再存在「渲染用搜索结果、操作查已加载数组」的脱节。
+   过滤结果缓存：键=归一化过滤条件，值=命中 path 清单；任何写/同步整体失效
+   （复用 clearPyCache 的失效点，见下），LRU 上限 20 条防膨胀。缓存只存 path
+   不存帖对象——切片返回时按 path 直读磁盘取最新，清单即使略陈旧页内容也不会错。 */
+const feedCache = new Map();   /* key(JSON) -> { paths: string[], at: number } */
+const FEED_CACHE_MAX = 20;
+function feedFilters(query) {
+  function s(k) { return String(query.get(k) || '').trim(); }
+  const f = { q: s('q'), tag: s('tag'), from: s('from'), to: s('to') };
+  if (f.from && !/^\d{4}-\d{2}-\d{2}$/.test(f.from)) f.from = '';
+  if (f.to && !/^\d{4}-\d{2}-\d{2}$/.test(f.to)) f.to = '';
+  return f;
+}
+function feedFilterAll(f) {
+  const key = JSON.stringify(f);
+  const hit = feedCache.get(key);
+  if (hit) { hit.at = Date.now(); return hit.paths; }
+  const terms = f.q.toLowerCase().split(/\s+/).filter(Boolean);
+  const from = f.from ? f.from.replace(/-/g, '') : '';
+  const to = f.to ? f.to.replace(/-/g, '') : '';
+  const paths = [];
   for (const ym of listMonths()) {
     for (const p of listPosts(ym)) {
-      total++;
-      const hay = (p.text + '\n' + p.tags.join(' ')).toLowerCase();
-      const py = pyIndexOf(p);
-      if (!terms.every((t) => hay.indexOf(t) > -1 || py.full.indexOf(t) > -1 || py.initials.indexOf(t) > -1)) continue;
-      hits.push(p);
-      if (hits.length >= LIMIT) break;
+      if (f.tag && p.tags.indexOf(f.tag) === -1) continue;
+      /* 无法解析时间的帖子不因时间筛选丢失（对齐前端原 trPostInRange 行为） */
+      const day = (p.stem || p.created || '').slice(0, 8);
+      if ((from || to) && /^\d{8}$/.test(day)) {
+        if (from && day < from) continue;
+        if (to && day > to) continue;
+      }
+      if (terms.length) {
+        const hay = (p.text + '\n' + p.tags.join(' ')).toLowerCase();
+        const py = pyIndexOf(p);
+        if (!terms.every((t) => hay.indexOf(t) > -1 || py.full.indexOf(t) > -1 || py.initials.indexOf(t) > -1)) continue;
+      }
+      paths.push(p.path);
     }
-    if (hits.length >= LIMIT) break;
   }
-  return { hits, total, ms: Date.now() - t0 };
+  feedCache.set(key, { paths, at: Date.now() });
+  while (feedCache.size > FEED_CACHE_MAX) {
+    let oldest = null, ot = Infinity;
+    for (const [k, v] of feedCache) { if (v.at < ot) { ot = v.at; oldest = k; } }
+    feedCache.delete(oldest);
+  }
+  return paths;
+}
+function feedPage(query) {
+  const f = feedFilters(query);
+  let offset = parseInt(query.get('offset') || '0', 10);
+  let limit = parseInt(query.get('limit') || '200', 10);
+  if (!Number.isFinite(offset) || offset < 0) offset = 0;
+  if (!Number.isFinite(limit) || limit < 1) limit = 200;
+  if (limit > 500) limit = 500;   /* 钳制上限：分页不可被单个请求绕过 */
+  const paths = feedFilterAll(f);
+  /* 钉住帖随每次响应全量返回（来源 main.json pins，读单文件非全库扫描）；磁盘上已不存在的静默剔除 */
+  const pins = readMain().pins
+    .map((p) => { try { return fs.existsSync(path.join(REPO_DIR, p)) ? readPost(p) : null; } catch (_) { return null; } })
+    .filter(Boolean);
+  /* 按清单切片、直读主数据：单条缺失（外部改文件等旁路）跳过不报错 */
+  const items = paths.slice(offset, offset + limit)
+    .map((p) => { try { return readPost(p); } catch (_) { return null; } })
+    .filter(Boolean);
+  return { items, total: paths.length, pins };
 }
 
 /* ================= AI 代理：浏览器统一经本机服务转发 AI 请求并透传流式响应 =================
@@ -1626,6 +1677,9 @@ async function route(req, res) {
       } else if (urlPath === '/api/remote-overwrite' && req.method === 'POST') {
         if (syncState.busy || writeBusy) throw httpError(409, '同步或写入进行中');
         out = await enqueueWrite(() => remoteOverwrite());
+      } else if (urlPath === '/api/feed' && req.method === 'GET') {
+        ensureReady();
+        out = feedPage(query);
       } else if (urlPath === '/api/posts' && req.method === 'GET') {
         ensureReady();
         out = pagePosts(query.get('before') || '');
@@ -1647,9 +1701,6 @@ async function route(req, res) {
       } else if (urlPath === '/api/tags' && req.method === 'PUT') {
         if (syncState.busy || writeBusy) throw httpError(409, '已有写操作进行中，请稍候');
         out = await enqueueWrite(() => writeTags(body.tags, body.action, body.tag));
-      } else if (urlPath === '/api/search' && req.method === 'GET') {
-        ensureReady();
-        out = searchAll(query.get('q') || '');
       } else if (urlPath === '/api/git/log' && req.method === 'GET') {
         ensureReady();
         out = await gitLog({ limit: query.get('limit'), path: query.get('path') || '' });

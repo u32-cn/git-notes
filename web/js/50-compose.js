@@ -130,24 +130,28 @@ function publish() {
     images: imgs.map(function (im) { return { ext: im.ext, base64: im.base64 }; }),
     files: fls.map(function (f) { return { name: f.name, ext: f.ext, base64: f.base64 }; })
   }).then(function (post) {
-    state.posts.unshift(post);
     justAddedPath = post.path;
     capImages = [];
     capFiles = [];
     capSel = [];
     $('#cap-input').value = '';
     autoGrow($('#cap-input'));
-    if (state.filter && post.tags.indexOf(state.filter) === -1) state.filter = '';
-    renderAll();
     renderCapStrip();
     renderCapFileStrip();
     renderCapChips();
     collapseCompose();
-    /* 倒排信息流：新帖贴底，发布后滚到最新 */
-    var sc = $('#feed-scroll');
-    if (sc) sc.scrollTop = sc.scrollHeight;
-    toast(state.timeRange && !trPostInRange(post) ? '已发布（不在当前时间段筛选内）' : '已发布', 'ok');
-    settleStatus();
+    /* 统一数据通路：发布后等量重拉当前过滤视图（新帖命中条件才会出现），滚到最新 */
+    reloadFeedInPlace().then(function () {
+      /* 倒排信息流：新帖贴底，发布后滚到最新 */
+      feedPinBottom();
+      if (state.query && postHasTerm(post)) {
+        toast('已发布', 'ok');
+      } else if ((state.filter && post.tags.indexOf(state.filter) === -1) || feed.total === 0) {
+        toast('已发布（不在当前过滤范围内）', 'ok');
+      } else {
+        toast('已发布', 'ok');
+      }
+    });
     refreshSyncStatus();
   }).catch(handleApiError).finally(function () {
     publishing = false;
@@ -155,15 +159,22 @@ function publish() {
     btn.textContent = '发 布';
   });
 }
+/* 发布后 toast 判断用：新帖是否命中当前搜索词（与 /api/feed 的服务端匹配同规则） */
+function postHasTerm(post) {
+  var terms = searchTerms();
+  if (!terms.length) return false;
+  var hay = (post.text + '\n' + post.tags.join(' ')).toLowerCase();
+  return terms.every(function (t) { return hay.indexOf(t) > -1; });
+}
 
 /* ================= 编辑 ================= */
 function postByPath(p) {
-  for (var i = 0; i < state.posts.length; i++) if (state.posts[i].path === p) return state.posts[i];
+  for (var i = 0; i < state.items.length; i++) if (state.items[i].path === p) return state.items[i];
   return null;
 }
 function startEdit(path) {
   var p = postByPath(path);
-  if (!p) return;
+  if (!p) { toast('该笔记不在当前列表中，请刷新后重试', 'err'); return; }
   editCtx = {
     path: p.path, dir: p.dir, stem: p.stem,
     text: p.text, selTags: p.tags.slice(),
@@ -197,11 +208,12 @@ function toggleTodo(path, checked) {
   todoBusy[path] = true;
   status('更新中…');
   apiUpdatePost({ path: path, text: p.text, tags: tags })
-    .then(function (post) {
-      p.tags = post.tags; p.text = post.text; p.images = post.images; p.files = post.files || [];
-      renderAll();
+    .then(function () {
+      /* 统一数据通路：标签变了可能影响当前过滤视图（如「待办」筛选下完成即移出），等量重拉 */
+      return reloadFeedInPlace();
+    })
+    .then(function () {
       toast(checked ? '待办已完成' : '已恢复待办', 'ok');
-      settleStatus();
       refreshSyncStatus();
     })
     .catch(function (e) { renderAll(); handleApiError(e); })
@@ -253,15 +265,14 @@ function saveEdit() {
     newImages: c.newImgs.map(function (im) { return { ext: im.ext, base64: im.base64 }; }),
     keepFileNames: c.keepFilePaths.slice(),
     newFiles: c.newFiles.map(function (f) { return { name: f.name, ext: f.ext, base64: f.base64 }; })
-  }).then(function (post) {
-    var p = postByPath(c.path);
-    if (p) { p.text = post.text; p.tags = post.tags; p.images = post.images; p.files = post.files || []; }
+  }).then(function () {
     editCtx = null;
     state.editingPath = null;
     justAddedPath = c.path;
-    renderAll();
+    /* 统一数据通路：编辑可能改文/改标签，影响当前过滤视图，等量重拉 */
+    return reloadFeedInPlace();
+  }).then(function () {
     toast('已保存（git 历史可找回）', 'ok');
-    settleStatus();
     refreshSyncStatus();
   }).catch(handleApiError).finally(function () {
     editSaving = false;
@@ -402,11 +413,10 @@ function deletePost(path) {
       if (!yes) return;
       status('删除中…');
       apiDeletePost(path).then(function () {
-        state.posts = state.posts.filter(function (x) { return x.path !== path; });
-        state.pinPosts = state.pinPosts.filter(function (x) { return x.path !== path; });
-        renderAll();
+        /* 统一数据通路：删除后等量重拉当前过滤视图（total 同步减少） */
+        return reloadFeedInPlace();
+      }).then(function () {
         toast('已删除（git 历史可找回）', 'ok');
-        settleStatus();
         refreshSyncStatus();
       }).catch(handleApiError);
     });

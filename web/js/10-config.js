@@ -22,17 +22,15 @@ var state = {
   remote: '',         /* 绑定的远端地址（仅本机为空） */
   branch: '',         /* 当前分支名（/api/status 返回；无仓库为空） */
   hasKey: false,
-  posts: [],          /* 已加载微笔记（信息流，新→旧） */
+  items: [],          /* 当前过滤结果（/api/feed 的 items，新→旧）：渲染与所有操作的唯一数据源 */
   pinPosts: [],       /* 钉住的微笔记（main.json pins，默认信息流底部「📌 钉住」区块展示） */
   tags: DEFAULT_TAGS.slice(),
   filter: '',
   timeRange: null,    /* 时间段筛选 {from:'YYYY-MM-DD'|null, to:'YYYY-MM-DD'|null}，允许单端为空=开放区间 */
-  query: '',          /* 搜索关键词（全库搜索） */
-  searchHits: null,   /* 全库搜索结果数组；null=搜索进行中或非搜索态 */
-  searchMs: 0,
+  query: '',          /* 搜索关键词（过滤条件之一，空=浏览态） */
   editingPath: null
 };
-var feed = { loading: false, noMore: false, error: '', cursor: null };  /* cursor=已加载到的月份 YYYYMM */
+var feed = { loading: false, noMore: false, error: '', total: 0 };  /* total=当前过滤条件命中总数（服务端返回） */
 var syncInfo = { ahead: 0, behind: 0, lastAt: null, lastError: '', conflict: null };
 var editCtx = null;   /* 卡片编辑态 */
 

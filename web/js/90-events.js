@@ -130,7 +130,6 @@ function hardReloadPage() {
 $('#btn-refresh').onclick = function () {
   if (state.editingPath) { editCtx = null; state.editingPath = null; }
   state.query = '';
-  state.searchHits = null;
   state.filter = '';
   state.timeRange = null;
   $('#search').value = '';
@@ -394,13 +393,13 @@ $('#btn-add-tag').onclick = function () {
   });
 };
 $('#new-tag-input').onkeydown = function (ev) { if (ev.key === 'Enter') $('#btn-add-tag').click(); };
-/* 搜索：防抖 300ms 全库搜索（服务端支持拼音/首字母匹配） */
+/* 搜索：防抖 300ms（服务端统一过滤，支持拼音/首字母匹配） */
 $('#search').addEventListener('input', function () {
   clearTimeout(searchTimer);
   var v = this.value;
   searchTimer = setTimeout(function () {
     var q = v.trim();
-    if (state.query === q && (q === '' || state.searchHits)) return;
+    if (state.query === q) return;
     runSearch(q);
   }, 300);
 });

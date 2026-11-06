@@ -750,10 +750,10 @@ function aiSerial(list, fn) {
     }).then(function (r) { results.push(r); });
   }, Promise.resolve()).then(function () { return results; });
 }
-/* AI 写入落盘后刷新信息流（搜索态不动——searchHits 里本就没有新帖，刷新由用户手动触发） */
+/* AI 写入落盘后刷新信息流：统一数据通路下任何过滤条件都等量重拉，视图如实反映最新内容 */
 function aiRefreshFeed() {
-  if (state.query || !state.ready) return;
-  initFeed().then(function () { if (!feed.error) settleStatus(); });
+  if (!state.ready) return;
+  reloadFeedInPlace();
 }
 
 function tSetFilter(a) {
@@ -765,11 +765,14 @@ function tSetFilter(a) {
     var known = state.tags.slice();
     seenTags().forEach(function (t) { if (known.indexOf(t) === -1) known.push(t); });
     if (tag && known.indexOf(tag) === -1) return Promise.resolve('错误：标签「' + tag + '」不存在。可用标签：' + known.join('、'));
-    setFilter(tag);
-    var sp = runSearch(a.query || '');
-    return Promise.resolve(sp).then(function () { return setTimeRange(a.from || null, a.to || null); }).then(function () {
-      var tr = (a.from || a.to) ? ((a.from || '最早') + ' ~ ' + (a.to || '今天')) : '不限';
-      return '已应用筛选 → 标签:' + (tag || '不限') + ' | 时间:' + tr + ' | 关键词:' + (a.query || '无') + '；信息流当前显示 ' + visiblePosts().length + ' 条';
+    /* 条件一次设齐，统一走一次 initFeed（服务端过滤 + 偏移分页） */
+    state.filter = tag;
+    state.query = a.query || '';
+    $('#search').value = state.query;
+    state.timeRange = (a.from || a.to) ? { from: a.from || null, to: a.to || null } : null;
+    var tr = (a.from || a.to) ? ((a.from || '最早') + ' ~ ' + (a.to || '今天')) : '不限';
+    return initFeed().then(function () {
+      return '已应用筛选 → 标签:' + (tag || '不限') + ' | 时间:' + tr + ' | 关键词:' + (state.query || '无') + '；信息流当前显示 ' + visiblePosts().length + ' 条';
     });
   };
   return state.ready ? apply() : Promise.resolve('错误：仓库尚未就绪');
@@ -777,8 +780,8 @@ function tSetFilter(a) {
 function tSearch(a) {
   var q = String(a.query || '').trim();
   if (!q) return Promise.resolve('错误：query 不能为空');
-  return apiSearch(q).then(function (r) {
-    var hits = (r.hits || []).filter(function (p) { return aiInRange(p, a.from, a.to); });
+  return apiFeed({ q: q, tag: '', from: '', to: '' }, 0, 500).then(function (r) {
+    var hits = (r.items || []).filter(function (p) { return aiInRange(p, a.from, a.to); });
     hits = hits.slice(0, Math.min(Math.max(Number(a.max) || 20, 1), 20));
     hits.forEach(function (p) { aiSeen[p.path] = p; });
     if (!hits.length) return '没有命中（全库共 ' + (r.total || 0) + ' 条）。可尝试更换或减少关键词；支持拼音/首字母（如 banjia、bj）。';

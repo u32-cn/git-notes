@@ -386,7 +386,7 @@ class GitRepo(context: Context) {
         syncState.conflict = null
         syncState.lastError = ""
         syncState.lastAt = nowIso()
-        pyCache.clear()
+        pyCache.clear(); feedCache.clear()
         return JSONObject().put("overwritten", true)
     }
 
@@ -479,7 +479,7 @@ class GitRepo(context: Context) {
         } finally {
             syncState.busy = false
             syncState.phase = ""
-            pyCache.clear()   // 同步后远端内容可能已并入，拼音索引失效
+            pyCache.clear(); feedCache.clear()   // 同步后远端内容可能已并入，拼音索引失效
         }
     }
 
@@ -585,7 +585,7 @@ class GitRepo(context: Context) {
         git().use { g ->
             paths.forEach { g.add().addFilepattern(it).call() }
             val commit = g.commit().setMessage(msg).call() // null = 无实际变化
-            if (commit != null) pyCache.clear() // 写后拼音索引失效
+            if (commit != null) pyCache.clear(); feedCache.clear() // 写后拼音索引失效
             if (commit != null && hasRemote()) {
                 syncState.phase = "推送"
                 pushWithRetry(g)
@@ -744,8 +744,6 @@ class GitRepo(context: Context) {
         return Page(ym, posts, pinPosts, more)
     }
 
-    class Search(val hits: List<Post>, val total: Int, val ms: Long)
-
     /* ---------- 拼音索引（对齐 web/server.js pyIndexOf）：汉字转音节、其余字符原样保留 ---------- */
     private val pyCache = HashMap<String, Pair<String, String>>()
     private val cjkRegex = Regex("[\\u2e80-\\u9fff\\uf900-\\ufaff]")
@@ -770,24 +768,74 @@ class GitRepo(context: Context) {
         return e
     }
 
-    fun searchAll(q: String): Search {
-        val t0 = System.currentTimeMillis()
-        val terms = q.lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }
-        if (terms.isEmpty()) return Search(emptyList(), 0, 0)
-        val hits = mutableListOf<Post>()
-        var total = 0
-        outer@ for (ym in listMonths()) {
+    /* ---------- 统一信息流读接口：/api/feed（对齐 web/server.js：一切视图皆过滤，浏览=空条件） ----------
+       {q, tag, from, to} 全部在服务端全库过滤，命中清单（新→旧 path 数组）按 offset/limit 切片；
+       过滤结果缓存只存 path，切片直读主数据取最新；失效点与 pyCache 一致（写/同步，见各 clear 点）。 */
+    private val feedCache = HashMap<String, Pair<List<String>, Long>>()   // key -> (paths, lastHitAt)
+    private val feedCacheOrder = ArrayDeque<String>()
+    private val FEED_CACHE_MAX = 20
+
+    private data class FeedFilters(val q: String, val tag: String, val from: String, val to: String)
+
+    private fun feedFilters(query: Map<String, String>): FeedFilters {
+        fun s(k: String) = (query[k] ?: "").trim()
+        val dateRe = Regex("\\d{4}-\\d{2}-\\d{2}")
+        return FeedFilters(s("q"), s("tag"), s("from").takeIf { dateRe.matches(it) } ?: "", s("to").takeIf { dateRe.matches(it) } ?: "")
+    }
+
+    private fun feedFilterAll(f: FeedFilters): List<String> {
+        val key = listOf(f.q, f.tag, f.from, f.to).joinToString("\u0000")
+        feedCache[key]?.let {
+            feedCache[key] = it.copy(second = System.currentTimeMillis())
+            return it.first
+        }
+        val terms = f.q.lowercase().split(Regex("\\s+")).filter { it.isNotEmpty() }
+        val from = f.from.replace("-", "")
+        val to = f.to.replace("-", "")
+        val paths = mutableListOf<String>()
+        for (ym in listMonths()) {
             for (p in monthMdFiles(ym).mapNotNull { readPost(it) }) {
-                total++
-                val hay = (p.text + "\n" + p.tags.joinToString(" ")).lowercase()
-                val py = pinyinIndexOf(p)
-                if (terms.all { hay.contains(it) || py.first.contains(it) || py.second.contains(it) }) {
-                    hits.add(p)
-                    if (hits.size >= 200) break@outer
+                if (f.tag.isNotEmpty() && !p.tags.contains(f.tag)) continue
+                /* 无法解析时间的帖子不因时间筛选丢失（对齐前端原 trPostInRange 行为） */
+                val day = (p.stem.ifEmpty { p.created }).take(8)
+                if ((from.isNotEmpty() || to.isNotEmpty()) && Regex("\\d{8}").matches(day)) {
+                    if (from.isNotEmpty() && day < from) continue
+                    if (to.isNotEmpty() && day > to) continue
                 }
+                if (terms.isNotEmpty()) {
+                    val hay = (p.text + "\n" + p.tags.joinToString(" ")).lowercase()
+                    val py = pinyinIndexOf(p)
+                    if (!terms.all { hay.contains(it) || py.first.contains(it) || py.second.contains(it) }) continue
+                }
+                paths.add(p.path)
             }
         }
-        return Search(hits, total, System.currentTimeMillis() - t0)
+        feedCache[key] = Pair(paths, System.currentTimeMillis())
+        feedCacheOrder.addLast(key)
+        while (feedCacheOrder.size > FEED_CACHE_MAX) {
+            val old = feedCacheOrder.removeFirst()
+            feedCache.remove(old)
+        }
+        return paths
+    }
+
+    class FeedPage(val items: List<Post>, val total: Int, val pins: List<Post>)
+
+    fun feedPage(query: Map<String, String>): FeedPage {
+        val f = feedFilters(query)
+        var offset = query["offset"]?.toIntOrNull() ?: 0
+        var limit = query["limit"]?.toIntOrNull() ?: 200
+        if (offset < 0) offset = 0
+        if (limit < 1) limit = 200
+        if (limit > 500) limit = 500   /* 钳制上限：分页不可被单个请求绕过 */
+        val paths = feedFilterAll(f)
+        /* 钉住帖随每次响应全量返回（读单文件非全库扫描）；磁盘上已不存在的静默剔除 */
+        val pins = readMain().optJSONArray("pins")?.let { ja ->
+            (0 until ja.length()).mapNotNull { i -> ja.optString(i).takeIf { File(repoDir, it).isFile }?.let { rel -> readPost(rel) } }
+        } ?: emptyList()
+        /* 按清单切片、直读主数据：单条缺失（外部改文件等旁路）跳过不报错 */
+        val items = paths.drop(offset).take(limit).mapNotNull { readPost(it) }
+        return FeedPage(items, paths.size, pins)
     }
 
     /* ---------- 标签（动作语义：服务端基于磁盘现状合并） ---------- */
@@ -859,7 +907,7 @@ class GitRepo(context: Context) {
         git().use { g ->
             g.add().addFilepattern(MAIN_JSON).call()
             val commit = g.commit().setMessage(msg).call()
-            if (commit != null) pyCache.clear() // 写后拼音索引失效
+            if (commit != null) pyCache.clear(); feedCache.clear() // 写后拼音索引失效
             if (commit != null && hasRemote()) {
                 syncState.phase = "推送"
                 pushWithRetry(g)
@@ -1035,7 +1083,7 @@ class GitRepo(context: Context) {
         git().use { g ->
             g.add().addFilepattern(cur.dir).call() // add -A 语义：含删除
             val commit = g.commit().setMessage("micro: update " + summarize(text, keep.size + newImgs.size) + if (ai) " [ai]" else "").call()
-            if (commit != null) pyCache.clear() // 写后拼音索引失效
+            if (commit != null) pyCache.clear(); feedCache.clear() // 写后拼音索引失效
             if (commit != null && hasRemote()) {
                 syncState.phase = "推送"
                 pushWithRetry(g)
@@ -1076,7 +1124,7 @@ class GitRepo(context: Context) {
                 g.add().addFilepattern(MAIN_JSON).call()
             }
             val commit = g.commit().setMessage("micro: delete $summary" + if (ai) " [ai]" else "").call()
-            if (commit != null) pyCache.clear() // 写后拼音索引失效
+            if (commit != null) pyCache.clear(); feedCache.clear() // 写后拼音索引失效
             if (commit != null && hasRemote()) {
                 syncState.phase = "推送"
                 pushWithRetry(g)
@@ -1127,7 +1175,7 @@ class GitRepo(context: Context) {
             g.add().addFilepattern(path).call()
             val suffix = if (ai) " [ai]" else " [restore]"
             val c = g.commit().setMessage("micro: update " + summarize(cur.text, cur.images.size) + suffix).call()
-            if (c != null) pyCache.clear() // 写后拼音索引失效
+            if (c != null) pyCache.clear(); feedCache.clear() // 写后拼音索引失效
             if (c != null && hasRemote()) {
                 syncState.phase = "推送"
                 pushWithRetry(g)
@@ -1228,7 +1276,7 @@ class GitRepo(context: Context) {
         abs.parentFile?.mkdirs()
         val backed = backupIfExists(abs, rel.substringAfterLast('/'))
         abs.writeBytes(bytes)
-        pyCache.clear()
+        pyCache.clear(); feedCache.clear()
         JSONObject().put("path", rel).put("size", bytes.size).put("overwrote", existed).put("backup", backed)
     }
 
@@ -1260,7 +1308,7 @@ class GitRepo(context: Context) {
                 }
             }
         }
-        pyCache.clear()
+        pyCache.clear(); feedCache.clear()
         JSONObject().put("results", JSONArray(results))
     }
 
@@ -1272,7 +1320,7 @@ class GitRepo(context: Context) {
         if (toAbs.exists()) throw LocalApiError(409, "目标已存在：$to")
         toAbs.parentFile?.mkdirs()
         if (!fromAbs.renameTo(toAbs)) throw LocalApiError(500, "移动失败")
-        pyCache.clear()
+        pyCache.clear(); feedCache.clear()
         JSONObject().put("from", from).put("to", to)
     }
 
@@ -1361,7 +1409,7 @@ class GitRepo(context: Context) {
                     val localId = repo.resolve(Constants.HEAD)
                     unpushed = if (remoteId != null) countNotIn(repo, localId, remoteId) else countCommits(repo, localId)
                 }
-                pyCache.clear()
+                pyCache.clear(); feedCache.clear()
                 JSONObject().put("committed", true).put("hash", hash).put("message", msg).put("unpushed", unpushed)
             }
         }
@@ -1402,7 +1450,7 @@ class GitRepo(context: Context) {
                     integrateRemote(g)
                     syncState.behind = 0
                     syncState.lastAt = nowIso()
-                    pyCache.clear()
+                    pyCache.clear(); feedCache.clear()
                     JSONObject().put("pulled", true).put("integrated", behind).put("ahead", ahead)
                 }
             } catch (e: Exception) {
@@ -1530,7 +1578,7 @@ class GitRepo(context: Context) {
                 } catch (e: Exception) {
                     throw LocalApiError(400, "恢复失败（该提交中可能不存在这些文件）：" + rootMessage(e))
                 }
-                pyCache.clear()
+                pyCache.clear(); feedCache.clear()
                 JSONObject()
                     .put("restored", JSONArray(rels)).put("commit", commit)
                     .put("note", "已恢复到工作区并暂存，尚未提交；确认无误后用 git_commit 提交")

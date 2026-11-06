@@ -1,35 +1,17 @@
 'use strict';
-/* ================= 信息流：分月加载（服务端本地直读，无延迟） ================= */
-var feedSeq = 0;   /* 加载代际：feedReset 后旧请求的响应作废，防止哨兵/引导交错加载把同一月份推两次 */
+/* ================= 信息流：统一过滤数据通路（服务端过滤 + 偏移分页） =================
+   一切视图皆过滤，浏览 = 空条件：{q, tag, 时间段} 全部交给 GET /api/feed 在服务端
+   全库过滤，前端只持有「过滤条件 + 当前结果」。渲染与所有写操作（编辑/删除/钉住/
+   待办/灯箱）都只认 state.items——不再存在「渲染用搜索结果、操作查已加载数组」的脱节。 */
+var feedSeq = 0;   /* 请求代际：条件变化（feedReset）后，在途旧请求的响应一律作废 */
 var justAddedPath = null;   /* 刚发布/刚保存的帖子 path：下一次渲染播一次入场动画 */
 function feedReset() {
   feedSeq++;
-  feed.loading = false; feed.noMore = false; feed.error = ''; feed.cursor = null;
-  state.posts = [];
+  feed.loading = false; feed.noMore = false; feed.error = ''; feed.total = 0;
+  state.items = [];
+  state.pinPosts = [];
 }
-/* ================= 时间段筛选（区间 = 带边界的月份游走，零 API 改动） ================= */
-function trDay(p) {   /* 帖子所属日 YYYYMMDD（stem/created 均以此开头） */
-  return (p.stem || p.created || '').slice(0, 8);
-}
-function trPostInRange(p) {
-  var r = state.timeRange;
-  if (!r) return true;
-  var day = trDay(p);
-  if (!/^\d{8}$/.test(day)) return true;   // 无法解析时间的帖子不因筛选丢失
-  if (r.from && day < r.from.replace(/-/g, '')) return false;
-  if (r.to && day > r.to.replace(/-/g, '')) return false;
-  return true;
-}
-function trFloorMonth() {   // 区间下界所在月 YYYYMM（数字），null=无下界
-  var r = state.timeRange;
-  return (r && r.from) ? Number(r.from.slice(0, 7).replace('-', '')) : null;
-}
-/* 首次加载的 before 参数：有结束月则从「结束月+1」向前游走（+1 只用于 < 比较，202612+1=202613 语义正确） */
-function feedBefore() {
-  if (feed.cursor !== null) return feed.cursor;
-  var r = state.timeRange;
-  return (r && r.to) ? String(Number(r.to.slice(0, 7).replace('-', '')) + 1) : null;
-}
+/* ================= 时间段筛选（服务端过滤条件之一） ================= */
 function timeRangeLabel() {
   var r = state.timeRange;
   if (!r) return '🕒 时间';
@@ -108,8 +90,8 @@ function initFeed() {
   feedReset();
   renderAll();
   status('加载微笔记…');
-  return loadNextMonth().then(function () {
-    /* 倒排信息流：默认呈现最新——首批加载完贴底，视口未满时 chainMore 会继续补更早月份 */
+  return requestFeed(0).then(function () {
+    /* 倒排信息流：默认呈现最新——首批加载完贴底，视口未满时 chainMore 会继续补更早结果 */
     feedPinBottom();
   });
 }
@@ -124,75 +106,81 @@ function feedPinBottom() {
   var sc = $('#feed-scroll');
   if (sc) sc.scrollTop = sc.scrollHeight;
 }
-function loadNextMonth() {
-  /* state.ready 守卫：boot 前哨兵 IntersectionObserver 的首次触发会与本处 initFeed 交错加载同一月份 */
-  if (!state.ready || feed.loading || feed.noMore) return Promise.resolve();
+/* 当前过滤条件 → 查询参数（唯一组装点，浏览态即全空） */
+function feedParams() {
+  var r = state.timeRange;
+  return {
+    q: state.query,
+    tag: state.filter,
+    from: (r && r.from) || '',
+    to: (r && r.to) || ''
+  };
+}
+/* 取一页过滤结果。offset=0 整体替换（条件变化/写后等量重拉），offset>0 追加（加载更早）。
+   limit 缺省 200；写后重拉传 limit=items.length±，保住用户已加载窗口不塌缩。
+   keepPos=true（写后重拉）：重置后仍按高度差补偿 scrollTop，用户停留位置不动 */
+function requestFeed(offset, limit, keepPos) {
+  if (!state.ready || feed.loading) return Promise.resolve();
   feed.loading = true;
   var seq = feedSeq;
   /* 倒排信息流：更早的批次插在顶部，渲染后按高度差补偿 scrollTop，避免列表下跳 */
   var sc = $('#feed-scroll');
   var prevH = sc ? sc.scrollHeight : 0;
   var prevT = sc ? sc.scrollTop : 0;
-  var hadPosts = state.posts.length > 0;
+  var hadItems = state.items.length > 0;
   renderSentinel();
-  return apiPosts(feedBefore()).then(function (r) {
-    if (seq !== feedSeq) return;   /* 期间发生过 feedReset，本响应作废 */
-    if (!r.month) { feed.noMore = true; feed.loading = false; renderAll(); return; }
-    var floor = trFloorMonth();
-    if (floor !== null && Number(r.month) < floor) {   // 已游走出区间下界：丢弃并到此为止
-      feed.noMore = true; feed.loading = false; renderAll(); return;
+  return apiFeed(feedParams(), offset, limit).then(function (r) {
+    if (seq !== feedSeq) return;   /* 期间条件已变（feedReset），本响应作废 */
+    feed.total = r.total || 0;
+    if (offset > 0) {
+      state.items = state.items.concat(r.items);
+    } else {
+      state.items = r.items;
+      state.pinPosts = r.pins || [];
     }
-    feed.cursor = r.month;
-    var known = {};
-    state.posts.forEach(function (p) { known[p.path] = 1; });
-    var list = r.posts.filter(trPostInRange).sort(function (a, b) { return b.stem.localeCompare(a.stem); });
-    for (var i = 0; i < list.length; i++) {
-      if (!known[list[i].path]) { known[list[i].path] = 1; state.posts.push(list[i]); }
-    }
-    /* 钉住帖：随每次分页响应全量返回。收进 state.pinPosts（默认信息流底部「📌 钉住」区块用），
-       同时并入 state.posts（筛选/时间段态按普通帖参与）；并入后按 stem 重排保住新→旧序 */
-    if (r.pins && r.pins.length) {
-      var pinKnown = {};
-      state.pinPosts.forEach(function (p) { pinKnown[p.path] = 1; });
-      r.pins.forEach(function (p) {
-        if (!pinKnown[p.path]) { pinKnown[p.path] = 1; state.pinPosts.push(p); }
-        if (!known[p.path]) { known[p.path] = 1; state.posts.push(p); }
-      });
-      state.posts.sort(function (a, b) { return b.stem.localeCompare(a.stem); });
-    }
-    feed.noMore = !r.more;
+    feed.noMore = state.items.length >= feed.total;
     feed.loading = false;
     renderAll();
-    if (sc) sc.scrollTop = hadPosts ? (sc.scrollHeight - prevH + prevT) : 0;
+    if (sc) sc.scrollTop = (hadItems || keepPos) ? (sc.scrollHeight - prevH + prevT) : 0;
     chainMore();
     var sb = $('#status-bar');
     if (sb.className === 'ok' && sb.textContent.indexOf('就绪') !== -1) {
-      status('就绪 · ' + state.posts.length + ' 条微笔记', 'ok');
+      status('就绪 · ' + feed.total + ' 条微笔记', 'ok');
     }
   }).catch(function (e) {
+    if (seq !== feedSeq) return;
     feed.loading = false;
     feed.error = e.message;
     renderAll();
     handleApiError(e);
   });
 }
+/* 写操作成功后的等量重拉：保持当前过滤条件，把已加载窗口整体刷新（条数不变或 ±1），
+   视图原地修正而不是塌缩回第一页 */
+function reloadFeedInPlace() {
+  if (!state.ready) return Promise.resolve();
+  var n = state.items.length;   /* 先记窗口长度再重置 */
+  feedReset();
+  return requestFeed(0, Math.max(n, 1) + 1, true).then(function () {
+    if (!feed.error) settleStatus();
+  });
+}
 /* 视口未填满时继续加载（顶部哨兵实际可见才继续）。
    哨兵在 #feed 顶部：滚到底部（默认态）后 rect.top 为大负值，必须带下界判断——
    否则条件恒真会把全部历史一次性加载完；到点后再复核一次，防滚动贴底前安排的续载空跑。 */
 function chainMore() {
-  if (state.query || feed.loading || feed.noMore || feed.error) return;
+  if (feed.loading || feed.noMore || feed.error) return;
   var r = $('#feed-sentinel').getBoundingClientRect();
   if (r.top > -60 && r.top < window.innerHeight + 400) {
     setTimeout(function () {
       if (feed.loading || feed.noMore) return;
       var rr = $('#feed-sentinel').getBoundingClientRect();
-      if (rr.top > -60 && rr.top < window.innerHeight + 400) loadNextMonth();
+      if (rr.top > -60 && rr.top < window.innerHeight + 400) requestFeed(state.items.length);
     }, 30);
   }
 }
 var ioMore = new IntersectionObserver(function (entries) {
-  if (state.query) return;
-  if (entries.some(function (e) { return e.isIntersecting; })) loadNextMonth();
+  if (entries.some(function (e) { return e.isIntersecting; })) requestFeed(state.items.length);
 }, { rootMargin: '400px' });
 
 /* ================= 长笔记折叠：超过 FOLD_LINES 行默认收起，可展开/收起 ================= */
@@ -203,7 +191,7 @@ function isFolded(p) { return isFoldable(p) && !foldExpanded[p.path]; }
 /* ================= 渲染 ================= */
 function seenTags() {
   var used = {};
-  state.posts.forEach(function (p) { p.tags.forEach(function (t) { used[t] = 1; }); });
+  state.items.forEach(function (p) { p.tags.forEach(function (t) { used[t] = 1; }); });
   var ordered = state.tags.filter(function (t) { return used[t]; });
   var extras = Object.keys(used).filter(function (t) { return state.tags.indexOf(t) === -1; });
   return ordered.concat(extras);
@@ -237,15 +225,9 @@ function renderFilter() {
     box.appendChild(b);
   });
 }
-function setFilter(t) { state.filter = t; renderAll(); }
-function visiblePosts() {
-  var base = (state.query && state.searchHits) ? state.searchHits : state.posts;
-  return base.filter(function (p) {
-    if (!trPostInRange(p)) return false;   // 双保险：覆盖发布后未重载、区间单帖在界外的情况
-    if (state.filter && p.tags.indexOf(state.filter) === -1) return false;
-    return true;
-  });
-}
+function setFilter(t) { state.filter = t; initFeed(); }
+/* 过滤全部在服务端完成：前端可见集就是 /api/feed 返回并已加载的 items */
+function visiblePosts() { return state.items; }
 /* 命中词高亮：在已转义安全的文本节点上包 <mark>，不碰属性/链接 */
 function highlightTerms(root, terms) {
   var walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
@@ -290,21 +272,20 @@ function renderFeed() {
   var box = $('#feed');
   var list = visiblePosts();
   /* 钉住区块只在默认信息流（无搜索/标签/时间段筛选）显示在最后（最新帖之下）；
-     筛选/搜索态下钉住帖按普通帖参与（已并入 state.posts / searchHits） */
+     筛选/搜索态下钉住帖按普通帖参与过滤结果 */
   var pinBlock = (!state.query && !state.filter && !state.timeRange) ? state.pinPosts : [];
   var pinMap = {};
   pinBlock.forEach(function (p) { pinMap[p.path] = 1; });
-  if (!list.length && !pinBlock.length && !feed.loading && !feed.error && (state.query || feed.noMore)) {
+  if (!list.length && !pinBlock.length && !feed.loading && !feed.error) {
     var why;
-    if (state.query && !state.searchHits) why = '全库搜索中…';
-    else if (state.query) why = '全库没有匹配「' + esc(state.query) + '」的微笔记';
+    if (state.query) why = '没有匹配「' + esc(state.query) + '」的微笔记';
     else if (state.timeRange) why = '所选时间段内没有微笔记<br><button type="button" class="tr-clear-btn" data-u32-name="tr-clear-btn">清除时间筛选</button>';
     else if (state.filter) why = '没有带「' + esc(state.filter) + '」标签的微笔记';
     else why = '还没有微笔记——在下方记录第一条吧';
     box.innerHTML = '<div class="feed-empty" data-u32-name="feed-empty">' + why + '</div>';
     return;
   }
-  /* 倒排：state.posts 仍按新→旧存（API 顺序），DOM 反序输出（旧帖在上、新帖贴底），日期变化处插胶囊 */
+  /* 倒排：state.items 按新→旧存（服务端过滤结果顺序），DOM 反序输出（旧帖在上、新帖贴底），日期变化处插胶囊 */
   var out = [];
   var prevDay = '';
   for (var i = list.length - 1; i >= 0; i--) {
@@ -325,7 +306,7 @@ function renderFeed() {
     });
   }
   box.innerHTML = out.join('');
-  if (state.query && state.searchHits) {
+  if (state.query) {
     var terms = searchTerms();
     var cards = box.querySelectorAll('.post');
     for (var c = 0; c < cards.length; c++) highlightTerms(cards[c], terms);
@@ -455,18 +436,17 @@ function renderEditStrip() {
 function renderSentinel() {
   var el = $('#feed-sentinel');
   el.innerHTML = '';
-  if (state.query) return;   /* 全库搜索态：无分页概念 */
   if (feed.error) {
     var b = document.createElement('button');
     b.textContent = '⚠ 加载失败：' + feed.error + '（点击重试）';
     b.setAttribute('data-u32-name', 'feed-retry');
-    b.onclick = function () { feed.error = ''; loadNextMonth(); };
+    b.onclick = function () { feed.error = ''; requestFeed(state.items.length); };
     el.appendChild(b);
     return;
   }
   if (feed.loading) { el.textContent = '加载更早的微笔记…'; return; }
   if (feed.noMore) {
-    el.textContent = state.posts.length
+    el.textContent = state.items.length
       ? (state.timeRange ? '— 已到筛选时间段起点 —' : '— 已到最早 —')
       : '';
     return;
@@ -477,8 +457,7 @@ function renderSearchMeta() {
   var el = $('#search-meta');
   if (!state.query) { el.hidden = true; return; }
   el.hidden = false;
-  if (!state.searchHits) { el.textContent = '全库搜索中…'; return; }
-  el.textContent = '全库命中 ' + state.searchHits.length + ' 条（' + state.searchMs + ' ms）· 信息流已加载 ' + state.posts.length + ' 条';
+  el.textContent = '全库命中 ' + feed.total + ' 条 · 已加载 ' + state.items.length + ' 条';
 }
 function renderAll() {
   var wasBottom = feedAtBottom();   /* 重渲染（同步合并/筛选/编辑）前在底部就保持钉底 */
@@ -490,19 +469,10 @@ function renderAll() {
   if (wasBottom) feedPinBottom();
 }
 
-/* ================= 全库搜索（服务端扫本地仓库，支持拼音/首字母） ================= */
+/* ================= 搜索（过滤条件之一：改条件 → 统一走 /api/feed 重取） ================= */
 var searchTimer = null;
-var searchSeq = 0;
 function runSearch(q) {
-  var seq = ++searchSeq;
+  if (state.query === q) return;
   state.query = q;
-  state.searchHits = null;
-  renderAll();
-  if (!q) return Promise.resolve();
-  return apiSearch(q).then(function (r) {
-    if (seq !== searchSeq) return;   /* 已有更新一次搜索发起，丢弃旧结果 */
-    state.searchHits = r.hits;
-    state.searchMs = r.ms;
-    renderAll();
-  }).catch(handleApiError);
+  return initFeed();
 }

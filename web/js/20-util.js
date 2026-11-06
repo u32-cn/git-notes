@@ -21,7 +21,7 @@ function toast(msg, kind) {
 }
 /* 写操作成功后把状态栏从「…中」恢复为就绪（结果反馈已由 toast 承担） */
 function settleStatus() {
-  status('就绪 · ' + state.posts.length + ' 条微笔记' + (state.timeRange ? '（时间段筛选）' : ''), 'ok');
+  status('就绪 · ' + feed.total + ' 条微笔记' + (state.timeRange ? '（时间段筛选）' : ''), 'ok');
 }
 
 function api(method, url, body) {
@@ -107,14 +107,23 @@ function apiBindConnect(remote) { return api('POST', '/bind/connect', { remote: 
 function apiUnbind() { return api('POST', '/unbind', {}); }
 function apiForcePush() { return api('POST', '/force-push', {}); }
 function apiRemoteOverwrite() { return api('POST', '/remote-overwrite', {}); }
-function apiPosts(before) { return api('GET', '/posts' + (before ? '?before=' + encodeURIComponent(before) : '')); }
+function apiPosts(before) { return api('GET', '/posts' + (before ? '?before=' + encodeURIComponent(before) : '')); }   /* AI 读取指定月份帖子用；信息流读走 apiFeed */
+function apiFeed(f, offset, limit) {
+  var qs = [];
+  if (f.q) qs.push('q=' + encodeURIComponent(f.q));
+  if (f.tag) qs.push('tag=' + encodeURIComponent(f.tag));
+  if (f.from) qs.push('from=' + encodeURIComponent(f.from));
+  if (f.to) qs.push('to=' + encodeURIComponent(f.to));
+  qs.push('offset=' + (offset || 0));
+  qs.push('limit=' + (limit || 200));
+  return api('GET', '/feed?' + qs.join('&'));
+}
 function apiCreatePost(payload) { return api('POST', '/posts', payload); }
 function apiUpdatePost(payload) { return api('PUT', '/posts', payload); }
 function apiDeletePost(path) { return api('DELETE', '/posts', { path: path }); }
 function apiPin(path, pinned) { return api('POST', '/posts/pin', { path: path, pinned: pinned }); }
 function apiGetTags() { return api('GET', '/tags'); }
 function apiSaveTags(tags, action, tag) { return api('PUT', '/tags', { tags: tags, action: action, tag: tag }); }
-function apiSearch(q) { return api('GET', '/search?q=' + encodeURIComponent(q)); }
 function applySyncInfo(s) {
   syncInfo.ahead = s.ahead; syncInfo.behind = s.behind; syncInfo.lastAt = s.lastAt;
   syncInfo.lastError = s.lastError; syncInfo.conflict = s.conflict || null;
