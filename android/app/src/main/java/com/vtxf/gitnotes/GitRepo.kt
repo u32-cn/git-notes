@@ -810,6 +810,7 @@ class GitRepo(context: Context) {
                 paths.add(p.path)
             }
         }
+        paths.sortByDescending { it.substringAfterLast('/').removeSuffix(".md") }   /* 对齐 web/server.js：清单新→旧，前端反序渲染依赖此顺序 */
         feedCache[key] = Pair(paths, System.currentTimeMillis())
         feedCacheOrder.addLast(key)
         while (feedCacheOrder.size > FEED_CACHE_MAX) {
