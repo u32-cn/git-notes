@@ -190,6 +190,7 @@ async function pushBestEffort() {
     const cnt = await git(['rev-list', '--count', 'origin/' + MAIN_BRANCH + '..HEAD']);
     if (cnt.code === 0) syncState.ahead = parseInt(cnt.stdout.trim() || '0', 10);
     syncState.lastError = '已保存到本地，推送失败：' + String(e.message || e).split('\n')[0];
+    console.error('[git-notes] ' + syncState.lastError);
   }
 }
 
@@ -237,8 +238,10 @@ async function doSync() {
     syncState.lastAt = new Date().toISOString();
     return { ahead: syncState.ahead, behind: 0 };
   } catch (e) {
+    /* 对齐 electron 端：离线等网络故障只记 lastError，不中断调用方（写操作离线照常落本地）；冲突仍上抛 */
     syncState.lastError = e.conflict ? '存在冲突，等待处理' : String(e.message || e);
-    throw e;
+    console.error('[git-notes] doSync 失败（不阻塞本地操作）：' + String(e.message || e).split('\n')[0]);
+    if (e.conflict) throw e;
   } finally {
     syncState.busy = false;
     syncState.phase = '';
