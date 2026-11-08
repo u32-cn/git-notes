@@ -474,8 +474,12 @@ class GitRepo(context: Context) {
             }
             return JSONObject().put("ahead", syncState.ahead).put("behind", 0)
         } catch (e: Exception) {
+            // 对齐 PC 端：离线等网络故障只记 lastError，不中断调用方（写操作离线照常落本地）；冲突仍上抛
             syncState.lastError = if (syncState.conflict != null) "存在冲突，等待处理" else rootMessage(e)
-            throw e
+            android.util.Log.e("git-notes", "doSync 失败（不阻塞本地操作）：" + syncState.lastError, e)
+            if (syncState.conflict != null) throw e
+            return JSONObject().put("ahead", syncState.ahead).put("behind", 0)
+                .put("failed", true).put("error", syncState.lastError)
         } finally {
             syncState.busy = false
             syncState.phase = ""
@@ -567,6 +571,25 @@ class GitRepo(context: Context) {
         throw Exception("推送失败：远端持续有新提交，请稍后手动同步重试。")
     }
 
+    /** 推送尽力而为：本地提交已落地，离线/网络故障只记录错误不中断写操作，待联网后「立即同步」补推；冲突仍中断 */
+    private fun pushBestEffort(g: Git) {
+        try {
+            syncState.phase = "推送"
+            pushWithRetry(g)
+            syncState.lastAt = nowIso()
+        } catch (e: Exception) {
+            if (syncState.conflict != null) throw e
+            val repo = g.repository
+            val localId = repo.resolve(MAIN_BRANCH)
+            val remoteId = repo.resolve("origin/" + MAIN_BRANCH)
+            if (localId != null) {
+                syncState.ahead = if (remoteId != null) countNotIn(repo, localId, remoteId) else countCommits(repo, localId)
+            }
+            syncState.lastError = "已保存到本地，推送失败：" + rootMessage(e)
+            android.util.Log.e("git-notes", syncState.lastError, e)
+        }
+    }
+
     private fun ensureAuthor(g: Git) {
         val cfg = g.repository.config
         if (!cfg.getString("user", null, "name").isNullOrEmpty()) return
@@ -588,7 +611,7 @@ class GitRepo(context: Context) {
             if (commit != null) pyCache.clear(); feedCache.clear() // 写后拼音索引失效
             if (commit != null && hasRemote()) {
                 syncState.phase = "推送"
-                pushWithRetry(g)
+                pushBestEffort(g)
                 syncState.lastAt = nowIso()
             }
         }
@@ -911,7 +934,7 @@ class GitRepo(context: Context) {
             if (commit != null) pyCache.clear(); feedCache.clear() // 写后拼音索引失效
             if (commit != null && hasRemote()) {
                 syncState.phase = "推送"
-                pushWithRetry(g)
+                pushBestEffort(g)
                 syncState.lastAt = nowIso()
             }
         }
@@ -1087,7 +1110,7 @@ class GitRepo(context: Context) {
             if (commit != null) pyCache.clear(); feedCache.clear() // 写后拼音索引失效
             if (commit != null && hasRemote()) {
                 syncState.phase = "推送"
-                pushWithRetry(g)
+                pushBestEffort(g)
                 syncState.lastAt = nowIso()
             }
         }
@@ -1128,7 +1151,7 @@ class GitRepo(context: Context) {
             if (commit != null) pyCache.clear(); feedCache.clear() // 写后拼音索引失效
             if (commit != null && hasRemote()) {
                 syncState.phase = "推送"
-                pushWithRetry(g)
+                pushBestEffort(g)
                 syncState.lastAt = nowIso()
             }
         }
@@ -1179,7 +1202,7 @@ class GitRepo(context: Context) {
             if (c != null) pyCache.clear(); feedCache.clear() // 写后拼音索引失效
             if (c != null && hasRemote()) {
                 syncState.phase = "推送"
-                pushWithRetry(g)
+                pushBestEffort(g)
                 syncState.lastAt = nowIso()
             }
         }
