@@ -112,6 +112,20 @@ async function pushWithRetry() {
   throw new Error('推送失败：远端持续有新提交，请稍后手动同步重试。');
 }
 
+/* 推送尽力而为：本地提交已落地，离线/网络故障只记录错误不中断写操作，待联网后「立即同步」补推；冲突仍中断 */
+async function pushBestEffort() {
+  try {
+    syncState.phase = '推送';
+    await pushWithRetry();
+    syncState.lastAt = new Date().toISOString();
+  } catch (e) {
+    if (e && e.conflict) throw e;
+    const cnt = await git(['rev-list', '--count', 'origin/' + store.MAIN_BRANCH + '..HEAD']);
+    if (cnt.code === 0) syncState.ahead = parseInt(cnt.stdout.trim() || '0', 10);
+    syncState.lastError = '已保存到本地，推送失败：' + String(e.message || e).split('\n')[0];
+  }
+}
+
 async function doSync() {
   if (!store.getConfig().remote) return { local: true, ahead: 0, behind: 0 };
   await ensureUpstream();
@@ -395,7 +409,7 @@ async function commitAndPush(paths, msg) {
   if (st.code !== 0) return; // 无实际变化
   if (store.getConfig().remote) {
     syncState.phase = '推送';
-    await pushWithRetry();
+    await pushBestEffort();
     syncState.lastAt = new Date().toISOString();
   }
 }
@@ -470,7 +484,7 @@ async function updatePost({ path: rel, text, tags, keepNames, newImages, keepFil
   const st = await git(['commit', '-m', 'micro: update ' + summary + (ai ? ' [ai]' : '')]);
   if (st.code === 0 && store.getConfig().remote) {
     syncState.phase = '推送';
-    await pushWithRetry();
+    await pushBestEffort();
     syncState.lastAt = new Date().toISOString();
   }
   return { path: rel, name: cur.name, stem: cur.stem, dir: cur.dir, created: cur.created, tags: cleanTags, images: keep.concat(names), files: keepF.map((f) => ({ name: f.name, path: f.path })).concat(newFls.map((f, i) => ({ name: f.name, path: fileNames[i] }))), text: String(text || '').trim() };
@@ -499,7 +513,7 @@ async function deletePost({ path: rel, ai }) {
   await gitOk(['commit', '-m', 'micro: delete ' + summary + (ai ? ' [ai]' : '')]);
   if (store.getConfig().remote) {
     syncState.phase = '推送';
-    await pushWithRetry();
+    await pushBestEffort();
     syncState.lastAt = new Date().toISOString();
   }
 }
@@ -540,7 +554,7 @@ async function gitRestore({ path: rel, commit, ai }) {
   const st = await git(['commit', '-m', 'micro: update ' + store.summarize(cur.text, cur.images.length) + (ai ? ' [ai]' : ' [restore]')]);
   if (st.code === 0 && store.getConfig().remote) {
     syncState.phase = '推送';
-    await pushWithRetry();
+    await pushBestEffort();
     syncState.lastAt = new Date().toISOString();
   }
   return { path: rel, restored: true };
@@ -558,7 +572,7 @@ async function writeMain(mutate, msg) {
   const st = await git(['commit', '-m', msg]);
   if (st.code === 0 && store.getConfig().remote) {
     syncState.phase = '推送';
-    await pushWithRetry();
+    await pushBestEffort();
     syncState.lastAt = new Date().toISOString();
   }
   return cur;
