@@ -139,8 +139,9 @@ $('#btn-refresh').onclick = function () {
     return;
   }
   status('同步中…');
-  apiSync().then(function () {
-    toast('已同步，正在刷新…', 'ok');
+  apiSync().then(function (r) {
+    if (r && r.failed) toast('同步失败：' + (r.error || '网络不可达') + '（已按本地内容显示，联网后自动补推）', 'err');
+    else toast('已同步，正在刷新…', 'ok');
     hardReloadPage();
   }).catch(function (e) {
     toast('同步失败：' + e.message + '（已按本地内容显示）', 'err');
@@ -408,8 +409,9 @@ $('#btn-sync').onclick = function () {
   var btn = $('#btn-sync');
   btn.disabled = true;
   status('同步中…');
-  apiSync().then(function () {
-    toast('已同步', 'ok');
+  apiSync().then(function (r) {
+    if (r && r.failed) toast('同步失败：' + (r.error || '网络不可达') + '（本地改动已保存，联网后再同步）', 'err');
+    else toast('已同步', 'ok');
     settleStatus();
     return refreshSyncStatus();
   }).catch(function (e) {

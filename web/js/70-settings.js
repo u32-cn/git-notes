@@ -396,12 +396,16 @@ function setupConnectFlow() {
 function bootSync() {
   if (state.stage !== 'ready' || !state.ready) return;
   status('同步中…');
-  apiSync().then(function () {
+  var syncFailed = false;
+  apiSync().then(function (r) {
+    syncFailed = !!(r && r.failed);
     return refreshSyncStatus();
   }).then(function () {
     return initFeed();
   }).then(function () {
-    if (!feed.error) { toast('已同步最新', 'ok'); settleStatus(); }
+    if (feed.error) return;
+    if (syncFailed) toast('同步失败（本地内容已显示，联网后自动补推）', 'err');
+    else { toast('已同步最新', 'ok'); settleStatus(); }
   }).catch(function () {
     /* 静默降级：失败详情在设置页「上次同步失败」可见；409=已有同步/写操作在进行，无需打扰 */
     refreshSyncStatus();

@@ -199,6 +199,7 @@ async function doSync() {
   await ensureUpstream();
   syncState.busy = true;
   syncState.lastError = '';
+  let syncFailed = false;
   try {
     syncState.phase = '获取远端';
     await gitOk(['fetch', 'origin'], { timeout: 300000 });
@@ -236,12 +237,15 @@ async function doSync() {
       await pushWithRetry();
     }
     syncState.lastAt = new Date().toISOString();
+    if (syncFailed) return { ahead: syncState.ahead, behind: 0, failed: true, error: syncState.lastError };
     return { ahead: syncState.ahead, behind: 0 };
   } catch (e) {
     /* 对齐 electron 端：离线等网络故障只记 lastError，不中断调用方（写操作离线照常落本地）；冲突仍上抛 */
     syncState.lastError = e.conflict ? '存在冲突，等待处理' : String(e.message || e);
     console.error('[git-notes] doSync 失败（不阻塞本地操作）：' + String(e.message || e).split('\n')[0]);
     if (e.conflict) throw e;
+    syncFailed = true;
+    return { ahead: syncState.ahead, behind: 0, failed: true, error: syncState.lastError };
   } finally {
     syncState.busy = false;
     syncState.phase = '';
