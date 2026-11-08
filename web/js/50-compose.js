@@ -79,7 +79,9 @@ function renderCapStrip() {
     cc.textContent = capImages.length ? capImages.length + '/' + MAX_IMAGES + ' 张图' : '';
   }
 }
-function stageCapImage(file) {
+/* 粘贴/选图/拖拽统一入口：先过压缩门槛（超阈值弹窗确认），再进入原始暂存 */
+function stageCapImage(file) { prepareImage(file, stageCapImageRaw); }
+function stageCapImageRaw(file) {
   var mime = (file && file.type) || '';
   if (!CAP_IMG_MIME[mime]) { toast('错误：仅支持图片（png/jpg/webp/gif/bmp/avif）', 'err'); return; }
   if (file.size > 10 * 1024 * 1024) { toast('错误：图片超过 10MB（' + file.name + '）', 'err'); return; }
@@ -279,7 +281,8 @@ function saveEdit() {
     if (btn) { btn.disabled = false; btn.textContent = '保 存'; }
   });
 }
-function stageEditImage(file) {
+function stageEditImage(file) { prepareImage(file, stageEditImageRaw); }
+function stageEditImageRaw(file) {
   if (!editCtx) return;
   var mime = (file && file.type) || '';
   if (!CAP_IMG_MIME[mime]) { toast('错误：仅支持图片（png/jpg/webp/gif/bmp/avif）', 'err'); return; }

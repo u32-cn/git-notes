@@ -157,6 +157,104 @@ function filesFromClipboard(e) {
   }
   return files;
 }
+/* ================= 图片压缩门槛（静态位图统一入口） =================
+   规则：JPG 且 ≤600KB 且最长边 ≤1920px 直接保存；其余格式/超阈值先压缩并弹窗确认。
+   无透明 → 转 JPG（质量 0.85 起步递减，目标 ≤600KB，下限 0.5）；
+   有透明 → 保持 PNG，仅缩到 ≤1920px（体积不设目标）；
+   压完不比原图小 → 不弹窗直接用原图；GIF 等白名单外格式原样保存。 */
+var IMG_TH_SIZE = 600 * 1024;
+var IMG_TH_DIM = 1920;
+var IMG_TH_MIME = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/bmp': 'bmp', 'image/avif': 'avif' };
+var imgPrepQueue = Promise.resolve();  /* 多图同时进串行排队，避免弹窗互相覆盖 */
+
+function decodeImageFile(file) {
+  return new Promise(function (res, rej) {
+    var url = URL.createObjectURL(file);
+    var im = new Image();
+    im.onload = function () { URL.revokeObjectURL(url); res(im); };
+    im.onerror = function () { URL.revokeObjectURL(url); rej(new Error('decode')); };
+    im.src = url;
+  });
+}
+
+function imgCanvasHasAlpha(ctx, w, h) {
+  var d = ctx.getImageData(0, 0, w, h).data;
+  for (var i = 3; i < d.length; i += 4) { if (d[i] < 255) return true; }
+  return false;
+}
+
+function canvasToBlob(cv, mime, q) {
+  return new Promise(function (res) { cv.toBlob(res, mime, q); });
+}
+
+/* 返回 {blob, ext, w, h} 或 null（解码失败/压完更大/取消价值） */
+function compressImageFile(file, im) {
+  var scale = Math.min(1, IMG_TH_DIM / Math.max(im.naturalWidth, im.naturalHeight));
+  var w = Math.max(1, Math.round(im.naturalWidth * scale));
+  var h = Math.max(1, Math.round(im.naturalHeight * scale));
+  var cv = document.createElement('canvas');
+  cv.width = w; cv.height = h;
+  var ctx = cv.getContext('2d');
+  ctx.drawImage(im, 0, 0, w, h);
+  var hasAlpha;
+  try { hasAlpha = imgCanvasHasAlpha(ctx, w, h); } catch (_) { hasAlpha = true; }
+  if (hasAlpha) {
+    return canvasToBlob(cv, 'image/png').then(function (b) {
+      if (!b || b.size >= file.size) return null;
+      return { blob: b, ext: 'png', w: w, h: h };
+    });
+  }
+  /* 无透明：重铺白底再绘（避免透明区在 JPG 里发黑），质量递减逼近 600KB */
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.drawImage(im, 0, 0, w, h);
+  return new Promise(function (res) {
+    var q = 0.85;
+    var tryOnce = function () {
+      canvasToBlob(cv, 'image/jpeg', q).then(function (b) {
+        if (!b) { res(null); return; }
+        if (b.size <= IMG_TH_SIZE || q <= 0.5) {
+          res(b.size < file.size ? { blob: b, ext: 'jpg', w: w, h: h } : null);
+          return;
+        }
+        q = Math.max(0.5, q - 0.1);
+        tryOnce();
+      });
+    };
+    tryOnce();
+  });
+}
+
+function prepareImageOnce(file, stageFn) {
+  var mime = (file && file.type) || '';
+  var ext = IMG_TH_MIME[mime];
+  if (!ext) { stageFn(file); return; }  /* gif 等白名单外格式：原样 */
+  return decodeImageFile(file).then(function (im) {
+    var maxDim = Math.max(im.naturalWidth, im.naturalHeight);
+    if (ext === 'jpg' && file.size < IMG_TH_SIZE && maxDim <= IMG_TH_DIM) { stageFn(file); return; }
+    return compressImageFile(file, im).then(function (r) {
+      if (!r) { stageFn(file); return; }  /* 压不动/压完更大：静默用原图 */
+      var msg = '原 ' + fmtKb(file.size) + ' ' + ext.toUpperCase() + '（' + im.naturalWidth + '×' + im.naturalHeight + '）'
+        + '\n压缩后 ' + fmtKb(r.blob.size) + ' ' + r.ext.toUpperCase() + '（' + r.w + '×' + r.h + '）';
+      return dlg('是否压缩图片', { text: msg, ok: '压缩后插入' }).then(function (yes) {
+        if (yes) {
+          r.blob.name = file.name || ('image.' + r.ext);
+          stageFn(r.blob);
+        } else {
+          stageFn(file);
+        }
+      });
+    });
+  }).catch(function () { stageFn(file); });  /* 解码失败兜底：原样走后续校验 */
+}
+
+function prepareImage(file, stageFn) {
+  imgPrepQueue = imgPrepQueue
+    .then(function () { return prepareImageOnce(file, stageFn); })
+    .catch(function () {});
+}
+
 /* 发布器输入框随内容长高，封顶 240px 后出滚动条（overflow-y:auto） */
 function autoGrow(ta) {
   ta.style.height = 'auto';
