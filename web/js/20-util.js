@@ -168,12 +168,17 @@ var IMG_TH_MIME = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp
 var imgPrepQueue = Promise.resolve();  /* 多图同时进串行排队，避免弹窗互相覆盖 */
 
 function decodeImageFile(file) {
+  /* data URL 而非 blob: URL —— CSP img-src 未放行 blob:，blob 加载会被拦走解码失败兜底 */
   return new Promise(function (res, rej) {
-    var url = URL.createObjectURL(file);
-    var im = new Image();
-    im.onload = function () { URL.revokeObjectURL(url); res(im); };
-    im.onerror = function () { URL.revokeObjectURL(url); rej(new Error('decode')); };
-    im.src = url;
+    var fr = new FileReader();
+    fr.onload = function () {
+      var im = new Image();
+      im.onload = function () { res(im); };
+      im.onerror = function () { rej(new Error('decode')); };
+      im.src = String(fr.result);
+    };
+    fr.onerror = function () { rej(new Error('read')); };
+    fr.readAsDataURL(file);
   });
 }
 
