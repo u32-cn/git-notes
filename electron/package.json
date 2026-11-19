@@ -36,7 +36,7 @@
     },
     "publish": {
       "provider": "generic",
-      "url": "https://u32.cn/bd/apps/git-notes/update/win/"
+      "url": "https://git-notes.u32.cn/download/"
     },
     "artifactName": "git-notes-${version}-setup.${ext}"
   }

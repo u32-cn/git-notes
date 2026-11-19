@@ -1074,10 +1074,10 @@ function validAiConfig(cfg) {
 function defaultMain() {
   return { version: 1, tags: DEFAULT_TAGS.slice(), pins: [], ai: validAiConfig(null) };
 }
-/* AI 提供商预设：远端 JSON（OSS 托管，可随时更新）→ 内存缓存；拉取失败/不合法仅回退内置「自定义」一条。
-   预设单一事实源为 web/tools/mode_providers.json（发布时上传 OSS）。
+/* AI 提供商预设：远端 JSON（官网同域托管，可随时更新）→ 内存缓存；拉取失败/不合法仅回退内置「自定义」一条。
+   预设单一事实源为 homepage/data/mode_providers.json（随官网发布）。
    前端 CSP connect-src 'self' 不放宽，故由服务端代理读取，端点 /api/ai/providers（三端同语义）。 */
-const AI_PROVIDERS_URL = 'https://u32.cn/bd/apps/git-notes/info/mode_providers.json';
+const AI_PROVIDERS_URL = 'https://git-notes.u32.cn/data/mode_providers.json';
 const BUILTIN_AI_PROVIDERS = [
   { id: 'custom', label: '自定义大模型（手动填写）', baseURL: '', model: '', keyLink: '' },
 ];

@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "updatedAt": "20261101 000000",
+  "providers": [
+    {
+      "id": "zhipu-free",
+      "label": "智谱免费（glm-4.7-flash，免费但不稳定，开放平台 key）",
+      "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "glm-4.7-flash",
+      "keyLink": "https://bigmodel.cn/apikey/platform",
+      "extra": { "thinking": { "type": "disabled" } }
+    },
+    {
+      "id": "zhipu-fast",
+      "label": "智谱快速（glm-5.3-flash，开放平台 key）",
+      "baseURL": "https://open.bigmodel.cn/api/paas/v4",
+      "model": "glm-5.3-flash",
+      "keyLink": "https://bigmodel.cn/apikey/platform",
+      "extra": { "thinking": { "type": "disabled" } }
+    },
+    {
+      "id": "zhipu-coding",
+      "label": "智谱编程套餐快速（glm-5.3-flash，Coding 套餐 key）",
+      "baseURL": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "model": "glm-5.3-flash",
+      "keyLink": "https://bigmodel.cn/apikey/platform",
+      "extra": { "thinking": { "type": "disabled" } }
+    },
+    {
+      "id": "deepseek",
+      "label": "深度求索（deepseek-flash，极速）",
+      "baseURL": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "keyLink": "https://platform.deepseek.com/api_keys",
+      "extra": { "thinking": { "type": "disabled" } }
+    },
+    {
+      "id": "xhs-dots",
+      "label": "小红书大模型(当前免费体验阶段)",
+      "baseURL": "https://note3-prev-api.askdiandian.com/v1",
+      "model": "dots3-note-prev",
+      "keyLink": "https://dots.ai/platform/apikeys"
+    },
+    {
+      "id": "custom",
+      "label": "自定义大模型（手动填写）",
+      "baseURL": "",
+      "model": "",
+      "keyLink": ""
+    }
+  ]
+}

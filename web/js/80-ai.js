@@ -89,7 +89,7 @@ function aiSaveSettings() {
 }
 
 /* ================= 提供商快捷下拉（设置页 AI 区块）：清单来自 /api/ai/providers
-   （服务端代理远端 OSS JSON，单一事实源 web/tools/mode_providers.json，可随时更新；
+   （服务端代理官网同域 JSON，事实源 homepage/data/mode_providers.json，可随时更新；
    拉取失败仅回退内置「自定义」一条）。下方数组仅为接口返回前的占位。
    选中即自动填 baseURL/model + 获取 Key 链接，附加参数清空（思考默认关闭，想开自己加）；
    已保存配置时切换先确认覆盖；「自定义大模型」不动字段由用户手填 ================= */

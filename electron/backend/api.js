@@ -29,9 +29,9 @@ function getUpdateProgress() {
   return (updateProgressGetter && updateProgressGetter()) || { active: false, phase: 'idle', percent: 0, received: 0, total: 0, latest: '', error: '' };
 }
 
-/* 检测新版本：读 OSS 更新源 update/win/latest.yml（version 行），与 package.json 版本比对。
+/* 检测新版本：读更新源 download/latest.yml（version 行），与 package.json 版本比对。
    8s 超时；任何失败（网络/格式）都不抛错，装进 error 字段由前端展示 */
-const UPDATE_BASE = 'https://u32.cn/bd/apps/git-notes/update';
+const UPDATE_BASE = 'https://git-notes.u32.cn/download';
 /* 语义化比较：latest 逐段数值大于 current 才算有新版（更新源过期/回滚时不得误报） */
 function isNewerVersion(latest, current) {
   const a = String(latest).split('.').map(n => parseInt(n, 10) || 0);
@@ -45,7 +45,7 @@ function isNewerVersion(latest, current) {
 }
 async function checkUpdate() {
   try {
-    const r = await fetch(UPDATE_BASE + '/win/latest.yml', { signal: AbortSignal.timeout(8000) });
+    const r = await fetch(UPDATE_BASE + '/latest.yml', { signal: AbortSignal.timeout(8000) });
     if (!r.ok) throw new Error('更新源 HTTP ' + r.status);
     const text = await r.text();
     const m = text.match(/^version:\s*(\S+)/m);
@@ -58,7 +58,7 @@ async function checkUpdate() {
       current: VERSION,
       latest,
       updateAvailable: isNewerVersion(latest, VERSION),
-      url: UPDATE_BASE + '/win/git-notes-' + latest + '-setup.exe',
+      url: UPDATE_BASE + '/git-notes-' + latest + '-setup.exe',
       sha512: s ? s[1] : '',
     };
   } catch (e) {
@@ -225,9 +225,9 @@ async function handleApi(method, pathname, query, body) {
   }
 }
 
-/* AI 提供商预设：远端 JSON（OSS 托管，可随时更新）→ 内存缓存；拉取失败/不合法仅回退内置「自定义」一条。
-   预设单一事实源为 web/tools/mode_providers.json（发布时上传 OSS）。对齐 web/server.js aiProviders。 */
-const AI_PROVIDERS_URL = 'https://u32.cn/bd/apps/git-notes/info/mode_providers.json';
+/* AI 提供商预设：远端 JSON（官网同域托管，可随时更新）→ 内存缓存；拉取失败/不合法仅回退内置「自定义」一条。
+   预设单一事实源为 homepage/data/mode_providers.json（随官网发布）。对齐 web/server.js aiProviders。 */
+const AI_PROVIDERS_URL = 'https://git-notes.u32.cn/data/mode_providers.json';
 const BUILTIN_AI_PROVIDERS = [
   { id: 'custom', label: '自定义大模型（手动填写）', baseURL: '', model: '', keyLink: '' },
 ];

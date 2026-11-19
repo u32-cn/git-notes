@@ -530,7 +530,7 @@ class LocalServer(private val context: Context) {
             .put("sync", sync)
     }
 
-    // 检测新版本：拉 OSS 更新源 update/android/latest.json 与 BuildConfig.VERSION_NAME 比对（8s 超时；失败装 error 不抛，前端展示）
+    // 检测新版本：拉更新源 download/latest.json 与 BuildConfig.VERSION_NAME 比对（8s 超时；失败装 error 不抛，前端展示）
     // 语义化比较：latest 逐段数值大于 current 才算有新版（更新源过期/回滚时不得误报）
     private fun isNewerVersion(latest: String, current: String): Boolean {
         val a = latest.split('.').map { it.toIntOrNull() ?: 0 }
@@ -662,7 +662,7 @@ class LocalServer(private val context: Context) {
     private fun checkUpdate(): JSONObject {
         val cur = BuildConfig.VERSION_NAME
         return try {
-            val conn = URL("https://u32.cn/bd/apps/git-notes/update/android/latest.json").openConnection() as HttpURLConnection
+            val conn = URL("https://git-notes.u32.cn/download/latest.json").openConnection() as HttpURLConnection
             conn.connectTimeout = 8000
             conn.readTimeout = 8000
             val manifest = JSONObject(conn.inputStream.bufferedReader().readText())
@@ -671,7 +671,7 @@ class LocalServer(private val context: Context) {
             // 清单 url 兼容相对文件名（旧清单）：Java URL 不做相对解析，须补全基址
             val rawUrl = manifest.optString("url")
             val absUrl = if (rawUrl.startsWith("http")) rawUrl
-                else "https://u32.cn/bd/apps/git-notes/update/android/" + rawUrl.removePrefix("/")
+                else "https://git-notes.u32.cn/download/" + rawUrl.removePrefix("/")
             JSONObject()
                 .put("supported", true)
                 .put("current", cur)
@@ -718,10 +718,10 @@ class LocalServer(private val context: Context) {
     /* AI 代理：浏览器统一经本机服务转发 AI 请求并逐块透传流式响应（SSE）。
        部分服务商不支持浏览器跨域，同源代理对前端零差别；url/key 来自本机页面 localStorage，不落日志。
        关键：每读一块就 flush——攒着不 flush 的话流式会退化成一次性吐出。 */
-    /* AI 提供商预设：远端 JSON（OSS 托管，可随时更新）→ 内存缓存；拉取失败/不合法仅回退内置「自定义」一条。
-       预设单一事实源为 web/tools/mode_providers.json（发布时上传 OSS）。对齐 web/server.js aiProviders（三端同语义）。
+    /* AI 提供商预设：远端 JSON（官网同域托管，可随时更新）→ 内存缓存；拉取失败/不合法仅回退内置「自定义」一条。
+       预设单一事实源为 homepage/data/mode_providers.json（随官网发布）。对齐 web/server.js aiProviders（三端同语义）。
        HTTP 拉取必须在 IO 线程，路由已在线程池执行。 */
-    private val AI_PROVIDERS_URL = "https://u32.cn/bd/apps/git-notes/info/mode_providers.json"
+    private val AI_PROVIDERS_URL = "https://git-notes.u32.cn/data/mode_providers.json"
     private val BUILTIN_AI_PROVIDERS = arrayOf(
         arrayOf("custom", "自定义大模型（手动填写）", "", "", "", "")
     )
