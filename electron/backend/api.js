@@ -31,8 +31,8 @@ function getUpdateProgress() {
 
 /* 检测新版本：读更新源 data/latest.yml（Pages 源，稳定；version 行），与 package.json 版本比对。
    8s 超时；任何失败（网络/格式）都不抛错，装进 error 字段由前端展示 */
-const UPDATE_BASE = 'https://git-notes.u32.cn/data';        // 元数据：Pages 源（稳定）
-const DOWNLOAD_BASE = 'https://git-notes.u32.cn/download';  // 安装包：Releases 回源 + EdgeOne 缓存
+const UPDATE_BASE = 'https://git-notes.u32.cn/data/win';        // 元数据（win）：Pages 源（稳定）
+const DOWNLOAD_BASE = 'https://git-notes.u32.cn/download/win';  // 安装包（win）：Releases 回源 + EdgeOne 缓存
 /* 语义化比较：latest 逐段数值大于 current 才算有新版（更新源过期/回滚时不得误报） */
 function isNewerVersion(latest, current) {
   const a = String(latest).split('.').map(n => parseInt(n, 10) || 0);

@@ -2706,9 +2706,9 @@ var qrcode = function() {
 </script>
 <script>
 (function () {
-  var WIN_BASE = 'https://git-notes.u32.cn/download/';
-  var AND_BASE = 'https://git-notes.u32.cn/download/';
-  /* 元数据走 /data/（GitHub Pages 回源，稳定）；安装包走 /download/（Releases 回源 + 边缘缓存） */
+  var WIN_BASE = 'https://git-notes.u32.cn/download/win/';
+  var AND_BASE = 'https://git-notes.u32.cn/download/android/';
+  /* 元数据走 /data/<平台>/（GitHub Pages 回源，稳定）；安装包走 /download/<平台>/（Releases 回源 + 边缘缓存） */
   var META_BASE = 'https://git-notes.u32.cn/data/';
   var statusEl = document.querySelector('[data-dl-status]');
   var state = { win: null, android: null }, inFlight = false;
@@ -2820,8 +2820,8 @@ var qrcode = function() {
     var verEl = document.querySelector('[data-u32-name="qr-ver"]');
     if (verEl) verEl.textContent = '正在获取最新版本…';
     var tasks = [
-      get(metaUrl(META_BASE + 'latest.yml'), false).then(parseWin).then(function (d) { apply('win', d); }).catch(function () { state.win = null; }),
-      get(metaUrl(META_BASE + 'latest.json'), true).then(parseAndroid).then(function (d) { apply('android', d); }).catch(function () { state.android = null; qrFail(); })
+      get(metaUrl(META_BASE + 'win/latest.yml'), false).then(parseWin).then(function (d) { apply('win', d); }).catch(function () { state.win = null; }),
+      get(metaUrl(META_BASE + 'android/latest.json'), true).then(parseAndroid).then(function (d) { apply('android', d); }).catch(function () { state.android = null; qrFail(); })
     ];
     Promise.all(tasks).then(function () { inFlight = false; renderStatus(); });
   }

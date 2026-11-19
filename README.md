@@ -126,40 +126,43 @@ web/server.js（Node ≥18 零 npm 依赖，spawn 系统 git）
 
 ## 更新与下载服务地址
 
-发布渠道：GitHub Pages（官网与元数据）+ GitHub Releases（安装包），经 EdgeOne CDN 加速国内访问。所有地址同域 `git-notes.u32.cn`，规律为**元数据走 `/data/`、安装包走 `/download/`**。
+发布渠道：GitHub Pages（官网与元数据）+ GitHub Releases（安装包），经 EdgeOne CDN 加速国内访问。所有地址同域 `git-notes.u32.cn`，规律为**元数据走 `/data/<平台>/`、安装包走 `/download/<平台>/`**（平台目录：`win`、`android`）。
 
 | 用途 | 地址 |
 |---|---|
 | 官网 | `https://git-notes.u32.cn/` |
-| Windows 更新检查 | `https://git-notes.u32.cn/data/latest.yml` |
-| Android 更新检查 | `https://git-notes.u32.cn/data/latest.json` |
-| 安装包下载 | `https://git-notes.u32.cn/download/<exe/apk 文件名>`（也可直连 GitHub Releases） |
-| AI 服务商预设清单 | `https://git-notes.u32.cn/data/mode_providers.json` |
+| Windows 更新检查 | `https://git-notes.u32.cn/data/win/latest.yml` |
+| Android 更新检查 | `https://git-notes.u32.cn/data/android/latest.json` |
+| Windows 安装包下载 | `https://git-notes.u32.cn/download/win/<exe 文件名>` |
+| Android 安装包下载 | `https://git-notes.u32.cn/download/android/<apk 文件名>` |
+| AI 服务商预设清单（不分平台） | `https://git-notes.u32.cn/data/mode_providers.json` |
 | AI 技能说明 | `https://git-notes.u32.cn/llms.txt` |
 
-从源码改更新链路时涉及的位置：`electron/backend/api.js`（UPDATE_BASE / DOWNLOAD_BASE）、`android/app/src/main/java/com/vtxf/gitnotes/LocalServer.kt`、`homepage/index.html`（META_BASE）、`web/server.js`（AI_PROVIDERS_URL）、`homepage/data/`（清单与预设文件随官网发布）。
+> 清单与安装包路径一律带平台段，新平台接入时新增目录即可，不会撞名。（GitHub Releases 资产本身是平铺的，EdgeOne 回源时剥掉平台段，源文件不用改。）
+
+从源码改更新链路时涉及的位置：`electron/backend/api.js`（UPDATE_BASE / DOWNLOAD_BASE，指向 `/data/win/`、`/download/win/`）、`android/app/src/main/java/com/vtxf/gitnotes/LocalServer.kt`（`/data/android/`、`/download/android/`）、`homepage/index.html`（META_BASE / WIN_BASE / AND_BASE）、`web/server.js`（AI_PROVIDERS_URL）、`homepage/data/win/`、`homepage/data/android/`（清单随官网发布）。
 
 ## 发布流程
 
 发布渠道架构（2026-11-19 迁移后）：
 
 - **官网**：`homepage/` → push main 自动部署到 GitHub Pages（`u32-cn.github.io/git-notes/`）→ EdgeOne 回源加速，域名 `git-notes.u32.cn`
-- **安装包**：GitHub Releases 资产 → EdgeOne 回源跟随重定向加速，下载路径 `git-notes.u32.cn/download/<文件名>`
-- **更新清单**：`homepage/data/latest.yml`（Windows）/ `homepage/data/latest.json`（Android）随官网同源发布，取数路径 `git-notes.u32.cn/data/`
+- **安装包**：GitHub Releases 资产（平铺存放）→ EdgeOne 回源跟随重定向加速，下载路径 `git-notes.u32.cn/download/<平台>/<文件名>`，平台段由 EdgeOne 重写剥掉
+- **更新清单**：`homepage/data/win/latest.yml` / `homepage/data/android/latest.json` 随官网同源发布，取数路径 `git-notes.u32.cn/data/<平台>/`
 - **AI 服务商预设**：改 `web/tools/mode_providers.json` 后需同步复制到 `homepage/data/mode_providers.json`
 
 每次发版的固定步骤（发版前须遵守 AGENTS.md 的发布纪律：先询问用户、必须打 tag）：
 
 1. 改版本号（`web/package.json` / `electron/package.json` / android versionName 继承）→ 构建 exe 与 apk
 2. 在版本号提交上打 annotated tag `v<版本号>` 并推送（`git push <remote> main --follow-tags`）
-3. **更新两个清单文件**：`homepage/data/latest.yml`（version / files[0].url / sha512 / size，对齐 exe 实测值）与 `homepage/data/latest.json`（version / url 绝对地址指向 `git-notes.u32.cn/download/<apk 文件名>` / sha512），随代码一起 push
-4. 创建 GitHub Release（tag 复用已打的）并上传 4 个资产：exe、apk、`latest.yml`、`latest.json`（Release 里的清单是给 `releases/latest/download/` 直连兜底用的，内容与 `homepage/data/` 保持一致）
-5. 验证：`git-notes.u32.cn/data/latest.yml`、`.../latest.json` 返回 200 且版本正确；`git-notes.u32.cn/download/<exe>`、`<apk>` 可下载；官网首页两个平台版本号都显示正常
+3. **更新两个平台清单文件**：`homepage/data/win/latest.yml`（version / files[0].url / sha512 / size，对齐 exe 实测值）与 `homepage/data/android/latest.json`（version / url 绝对地址指向 `git-notes.u32.cn/download/android/<apk 文件名>` / sha512），随代码一起 push
+4. 创建 GitHub Release（tag 复用已打的）并上传 4 个资产（平铺）：exe、apk、`latest.yml`、`latest.json`（Release 里的清单是给 `releases/latest/download/` 直连兜底用的，内容与 `homepage/data/` 保持一致，其中 apk 的 url 字段同样指向 `/download/android/` 路径）
+5. 验证：`git-notes.u32.cn/data/win/latest.yml`、`.../data/android/latest.json` 返回 200 且版本正确；`git-notes.u32.cn/download/win/<exe>`、`/download/android/<apk>` 可下载；官网首页两个平台版本号都显示正常
 6. 若 EdgeOne 缓存导致官网/清单内容滞后，刷新对应 URL 的 CDN 缓存
 
 注意事项：
 
-- **元数据只走 Pages 源（/data/），安装包只走 Releases 源（/download/）**。不要把 latest.yml/json 挂回 /download/ 路径——EdgeOne 回源 GitHub Releases 不稳定（实测约 30% 回源超时），元数据必须走稳定的 Pages 源
+- **元数据只走 Pages 源（/data/<平台>/），安装包只走 Releases 源（/download/<平台>/）**。不要把清单挂回 /download/ 路径——EdgeOne 回源 GitHub Releases 不稳定（实测约 30% 回源超时），元数据必须走稳定的 Pages 源
 - 官网取数代码不带 `?t=` 防缓存参数（会绕过 EdgeOne 缓存强制回源，暴露回源失败率）
 - 公开仓库与 Release 资产禁止包含任何密钥/个人信息，上传前必须扫描确认
 

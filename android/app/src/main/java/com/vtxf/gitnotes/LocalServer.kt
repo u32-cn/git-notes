@@ -662,7 +662,7 @@ class LocalServer(private val context: Context) {
     private fun checkUpdate(): JSONObject {
         val cur = BuildConfig.VERSION_NAME
         return try {
-            val conn = URL("https://git-notes.u32.cn/data/latest.json").openConnection() as HttpURLConnection
+            val conn = URL("https://git-notes.u32.cn/data/android/latest.json").openConnection() as HttpURLConnection
             conn.connectTimeout = 8000
             conn.readTimeout = 8000
             val manifest = JSONObject(conn.inputStream.bufferedReader().readText())
@@ -671,7 +671,7 @@ class LocalServer(private val context: Context) {
             // 清单 url 兼容相对文件名（旧清单）：Java URL 不做相对解析，须补全基址
             val rawUrl = manifest.optString("url")
             val absUrl = if (rawUrl.startsWith("http")) rawUrl
-                else "https://git-notes.u32.cn/download/" + rawUrl.removePrefix("/")
+                else "https://git-notes.u32.cn/download/android/" + rawUrl.removePrefix("/")
             JSONObject()
                 .put("supported", true)
                 .put("current", cur)
