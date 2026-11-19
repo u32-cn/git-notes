@@ -2749,6 +2749,15 @@ var qrcode = function() {
 
   function apply(platform, data) {
     state[platform] = data;
+    /* 生成镜像候选：主路（EdgeOne+GitHub）+ gh-proxy 跨骨干网备源（Cloudflare / Fastly 各一条）。
+       gh-proxy 格式为「代理域名 + 完整 GitHub 地址」，tag 与文件名从清单元数据推导 */
+    data.candidates = [data.url];
+    if (data.version) {
+      var ghUrl = 'https://github.com/u32-cn/git-notes/releases/download/v' + data.version + '/' + data.url.split('/').pop();
+      ['https://gh-proxy.org/', 'https://cdn.gh-proxy.org/'].forEach(function (m) {
+        data.candidates.push(m + ghUrl);
+      });
+    }
     document.querySelectorAll('[data-dl="' + platform + '"]').forEach(function (a) {
       a.href = data.url;
       a.target = '_blank';
@@ -2757,6 +2766,23 @@ var qrcode = function() {
       a.removeAttribute('aria-disabled');
     });
     if (platform === 'android') renderQr(data);
+  }
+
+  /* 并行 HEAD 探活（no-cors：读不到状态码但耗时可测），最先返回者胜出；
+     全部超时/失败则回落主路。探测 3.5s 封顶，不阻塞体验 */
+  function pickMirror(candidates) {
+    return new Promise(function (resolve) {
+      var settled = false;
+      function finish(u) { if (!settled) { settled = true; resolve(u); } }
+      candidates.forEach(function (u) {
+        var ctrl = new AbortController();
+        var t = setTimeout(function () { ctrl.abort(); }, 3500);
+        fetch(u, { method: 'HEAD', mode: 'no-cors', cache: 'no-store', signal: ctrl.signal })
+          .then(function () { clearTimeout(t); finish(u); })
+          .catch(function () { clearTimeout(t); });
+      });
+      setTimeout(function () { finish(candidates[0]); }, 3600);
+    });
   }
 
   /* ---- Android 下载二维码（qrcode-generator 1.4.4，MIT，Kazuhiko Arase）---- */
@@ -2828,7 +2854,14 @@ var qrcode = function() {
 
   document.querySelectorAll('[data-dl]').forEach(function (a) {
     a.addEventListener('click', function (e) {
-      if (a.dataset.ready !== '1') { e.preventDefault(); load(); }
+      if (a.dataset.ready !== '1') { e.preventDefault(); load(); return; }
+      /* 元数据就绪后：先探活选最快下载源，再触发真实下载（href 保留主路作 JS 失效兜底） */
+      var platform = a.dataset.dl;
+      var data = state[platform];
+      if (data && data.candidates && data.candidates.length > 1) {
+        e.preventDefault();
+        pickMirror(data.candidates).then(function (u) { location.href = u; });
+      }
     });
   });
   load();
