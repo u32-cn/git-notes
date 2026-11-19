@@ -614,40 +614,55 @@ class LocalServer(private val context: Context) {
                 dir.listFiles()?.forEach { it.delete() }
                 // 先写临时名再原子改名：中途断流不留半截 APK 冒充完整包
                 val tmp = File(dir, "git-notes-v$ver.apk.part")
-                val conn = URL(url).openConnection() as HttpURLConnection
-                conn.connectTimeout = 10000
-                conn.readTimeout = 60000
-                try {
-                    if (conn.responseCode !in 200..299) throw LocalApiError(502, "下载失败：HTTP " + conn.responseCode)
-                    val total = conn.contentLengthLong
-                    var received = 0L
-                    conn.inputStream.use { input ->
-                        tmp.outputStream().use { out ->
-                            val buf = ByteArray(64 * 1024)
-                            while (true) {
-                                val n = input.read(buf)
-                                if (n < 0) break
-                                out.write(buf, 0, n)
-                                received += n
-                                updSet {
-                                    put("received", received).put("total", total)
-                                        .put("percent", if (total > 0) (received * 100 / total).toInt().coerceAtMost(100) else 0)
+                // 多镜像按序尝试（候选由 checkUpdate 下发 urls，主路在前）：任一镜像失败自动切下一个
+                val candidates = mutableListOf(url)
+                val extraUrls = cur.optJSONArray("urls")
+                if (extraUrls != null && extraUrls.length() > 0) {
+                    candidates.clear()
+                    for (i in 0 until extraUrls.length()) candidates.add(extraUrls.optString(i))
+                }
+                var lastErr: Exception? = null
+                var downloaded = false
+                for (cand in candidates) {
+                    val conn = URL(cand).openConnection() as HttpURLConnection
+                    conn.connectTimeout = 10000
+                    conn.readTimeout = 60000
+                    try {
+                        if (conn.responseCode !in 200..299) throw LocalApiError(502, "下载失败：HTTP " + conn.responseCode)
+                        val total = conn.contentLengthLong
+                        var received = 0L
+                        conn.inputStream.use { input ->
+                            tmp.outputStream().use { out ->
+                                val buf = ByteArray(64 * 1024)
+                                while (true) {
+                                    val n = input.read(buf)
+                                    if (n < 0) break
+                                    out.write(buf, 0, n)
+                                    received += n
+                                    updSet {
+                                        put("received", received).put("total", total)
+                                            .put("percent", if (total > 0) (received * 100 / total).toInt().coerceAtMost(100) else 0)
+                                    }
                                 }
                             }
                         }
+                        if (tmp.length() < 1024 * 1024) throw LocalApiError(502, "下载不完整")
+                        downloaded = true
+                        break
+                    } catch (e: Exception) {
+                        lastErr = e
+                        tmp.delete()
+                    } finally {
+                        conn.disconnect()
                     }
-                    if (tmp.length() < 1024 * 1024) throw LocalApiError(502, "下载不完整")
-                    // 更新源带 sha512 时强校验，不符拒绝安装（比依赖系统安装期签名校验更早暴露包损坏/被替换）
-                    if (wantSha.isNotEmpty() && !apkSha512(tmp).equals(wantSha, ignoreCase = true)) {
-                        throw LocalApiError(502, "APK 校验失败（sha512 不符），已拒绝安装")
-                    }
-                    if (!tmp.renameTo(apk)) throw LocalApiError(500, "APK 落盘失败")
-                } catch (e: Exception) {
-                    tmp.delete()
-                    throw e
-                } finally {
-                    conn.disconnect()
                 }
+                if (!downloaded) throw lastErr ?: LocalApiError(502, "所有下载源均失败")
+                // 更新源带 sha512 时强校验，不符拒绝安装（比依赖系统安装期签名校验更早暴露包损坏/被替换）
+                if (wantSha.isNotEmpty() && !apkSha512(tmp).equals(wantSha, ignoreCase = true)) {
+                    tmp.delete()
+                    throw LocalApiError(502, "APK 校验失败（sha512 不符），已拒绝安装")
+                }
+                if (!tmp.renameTo(apk)) throw LocalApiError(500, "APK 落盘失败")
             }
             // 到此即止：置 ready 等用户在 UI 点「安装」，不自动拉起系统安装器
             updSet { put("phase", "ready").put("percent", 100) }
@@ -672,12 +687,20 @@ class LocalServer(private val context: Context) {
             val rawUrl = manifest.optString("url")
             val absUrl = if (rawUrl.startsWith("http")) rawUrl
                 else "https://git-notes.u32.cn/download/android/" + rawUrl.removePrefix("/")
+            // 多镜像候选（与 electron/官网同构）：主路在前，gh-proxy（Cloudflare/Fastly）兜底；
+            // GitHub 地址 = releases/download/<tag>/<文件名>，文件名取主路最后一段
+            val fileName = absUrl.substringAfterLast('/')
+            val urls = JSONArray().put(absUrl)
+            for (p in listOf("https://gh-proxy.org/", "https://cdn.gh-proxy.org/")) {
+                urls.put(p + "https://github.com/u32-cn/git-notes/releases/download/v" + ver + "/" + fileName)
+            }
             JSONObject()
                 .put("supported", true)
                 .put("current", cur)
                 .put("latest", ver)
                 .put("updateAvailable", ver.isNotEmpty() && isNewerVersion(ver, cur))
                 .put("url", absUrl)
+                .put("urls", urls)
                 .put("sha512", manifest.optString("sha512"))
         } catch (e: Exception) {
             JSONObject()

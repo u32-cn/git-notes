@@ -232,8 +232,23 @@ async function autoUpdate() {
     if (!sha512Match(dest, r.sha512)) {
       for (const f of fs.readdirSync(dir)) { try { fs.unlinkSync(path.join(dir, f)); } catch (_) {} }
       const part = dest + '.part';
-      const res = await fetch(r.url, { signal: AbortSignal.timeout(5 * 60 * 1000) });
-      if (!res.ok) { setProgress({ active: false, phase: 'idle', error: '更新源 HTTP ' + res.status }); return; }
+      /* 多镜像按序尝试（候选由 checkUpdate 下发 urls，主路在前）：任一镜像失败（超时/断流/非 2xx）
+         自动切下一个，全部失败才报错；每个候选独立 5 分钟超时 */
+      const candidates = (Array.isArray(r.urls) && r.urls.length) ? r.urls : [r.url];
+      let res = null;
+      let lastErr = '';
+      for (const u of candidates) {
+        try {
+          const attempt = await fetch(u, { signal: AbortSignal.timeout(5 * 60 * 1000) });
+          if (!attempt.ok) throw new Error('HTTP ' + attempt.status);
+          res = attempt;
+          break;
+        } catch (e) {
+          lastErr = u.split('/')[2] + ': ' + ((e && e.message) || e);
+          console.error('[update] mirror failed', lastErr);
+        }
+      }
+      if (!res) { setProgress({ active: false, phase: 'idle', error: '所有下载源均失败（' + lastErr + '）' }); return; }
       const total = Number(res.headers.get('content-length')) || 0;
       setProgress({ total, received: 0, percent: 0 });
       let received = 0;

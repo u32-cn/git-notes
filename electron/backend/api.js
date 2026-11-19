@@ -33,6 +33,10 @@ function getUpdateProgress() {
    8s 超时；任何失败（网络/格式）都不抛错，装进 error 字段由前端展示 */
 const UPDATE_BASE = 'https://git-notes.u32.cn/data/win';        // 元数据（win）：Pages 源（稳定）
 const DOWNLOAD_BASE = 'https://git-notes.u32.cn/download/win';  // 安装包（win）：Releases 回源 + EdgeOne 缓存
+/* 多镜像下载候选（与官网 index.html 第 1 层同构）：主路 + gh-proxy（Cloudflare/Fastly 各一条，跨骨干冗余）。
+   gh-proxy 是第三方公益代理，仅作备选不作依赖；GitHub 侧地址 = releases/download/<tag>/<文件名>（tag 与官网镜像格式一致） */
+const GH_RELEASES_DL = 'https://github.com/u32-cn/git-notes/releases/download/v';
+const DOWNLOAD_MIRRORS = ['https://gh-proxy.org/', 'https://cdn.gh-proxy.org/'];
 /* 语义化比较：latest 逐段数值大于 current 才算有新版（更新源过期/回滚时不得误报） */
 function isNewerVersion(latest, current) {
   const a = String(latest).split('.').map(n => parseInt(n, 10) || 0);
@@ -54,12 +58,17 @@ async function checkUpdate() {
     const latest = m[1];
     /* electron-builder latest.yml 的 sha512 为 base64 形式，供安装包完整性校验/免重下复用 */
     const s = text.match(/^sha512:\s*(\S+)/m);
+    const file = 'git-notes-' + latest + '-setup.exe';
+    /* 候选下载地址按序尝试：主路（u32.cn CDN）在前，gh-proxy 镜像兜底 */
+    const urls = [DOWNLOAD_BASE + '/' + file];
+    for (const p of DOWNLOAD_MIRRORS) urls.push(p + GH_RELEASES_DL + latest + '/' + file);
     return {
       supported: true,
       current: VERSION,
       latest,
       updateAvailable: isNewerVersion(latest, VERSION),
-      url: DOWNLOAD_BASE + '/git-notes-' + latest + '-setup.exe',
+      url: urls[0],
+      urls,
       sha512: s ? s[1] : '',
     };
   } catch (e) {
