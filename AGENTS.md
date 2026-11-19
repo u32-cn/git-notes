@@ -24,6 +24,18 @@
 - **更新清单**：`homepage/data/latest.yml`（Windows）/ `homepage/data/latest.json`（Android）随官网同源发布，取数路径 `git-notes.u32.cn/data/`
 - **AI 服务商预设**：`web/tools/mode_providers.json` 改动后需同步复制到 `homepage/data/mode_providers.json`
 
+三端代码内置的地址（改这些就是改更新链路，均自 2026-11-19 迁移起生效）：
+
+| 用途 | 地址 | 所在文件 |
+|---|---|---|
+| Windows 更新检查（元数据） | `https://git-notes.u32.cn/data/latest.yml` | `electron/backend/api.js`（UPDATE_BASE） |
+| Windows 安装包下载 | `https://git-notes.u32.cn/download/<exe 文件名>` | 同上（DOWNLOAD_BASE） |
+| Android 更新检查（元数据） | `https://git-notes.u32.cn/data/latest.json` | `android/.../LocalServer.kt` |
+| Android 安装包下载 | `https://git-notes.u32.cn/download/<apk 文件名>`（写在 latest.json 的 url 字段） | `homepage/data/latest.json` |
+| AI 服务商预设清单 | `https://git-notes.u32.cn/data/mode_providers.json` | 三端各一处常量（web/server.js、electron/backend/api.js、android LocalServer.kt） |
+| web 版预设代理 | 同上（服务端代理，前端不直连） | `web/server.js`（AI_PROVIDERS_URL） |
+| 官网首页取数 | `/data/latest.yml` + `/data/latest.json` | `homepage/index.html`（META_BASE） |
+
 每次发版的固定步骤：
 
 1. 改版本号（`web/package.json` / `electron/package.json` / android versionName 继承）→ 构建 exe 与 apk
