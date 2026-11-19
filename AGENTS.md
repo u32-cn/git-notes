@@ -16,36 +16,4 @@
 
 **发布版本必须打 tag（硬性习惯）**：每次正式发布版本，都要在版本号提交上打 annotated tag `v<版本号>`（如 `v0.7.0`，注明该版本要点），并随分支推送到所有远端（`git push <remote> main --follow-tags`）。
 
-## 发布流程（2026-11-19 迁移后：GitHub Pages + Releases + EdgeOne）
-
-发布渠道架构：
-- **官网**：`homepage/` → push main 自动部署到 GitHub Pages（`u32-cn.github.io/git-notes/`）→ EdgeOne 回源加速，域名 `git-notes.u32.cn`
-- **安装包**：GitHub Releases 资产 → EdgeOne 回源跟随重定向加速，下载路径 `git-notes.u32.cn/download/<文件名>`
-- **更新清单**：`homepage/data/latest.yml`（Windows）/ `homepage/data/latest.json`（Android）随官网同源发布，取数路径 `git-notes.u32.cn/data/`
-- **AI 服务商预设**：`web/tools/mode_providers.json` 改动后需同步复制到 `homepage/data/mode_providers.json`
-
-三端代码内置的地址（改这些就是改更新链路，均自 2026-11-19 迁移起生效）：
-
-| 用途 | 地址 | 所在文件 |
-|---|---|---|
-| Windows 更新检查（元数据） | `https://git-notes.u32.cn/data/latest.yml` | `electron/backend/api.js`（UPDATE_BASE） |
-| Windows 安装包下载 | `https://git-notes.u32.cn/download/<exe 文件名>` | 同上（DOWNLOAD_BASE） |
-| Android 更新检查（元数据） | `https://git-notes.u32.cn/data/latest.json` | `android/.../LocalServer.kt` |
-| Android 安装包下载 | `https://git-notes.u32.cn/download/<apk 文件名>`（写在 latest.json 的 url 字段） | `homepage/data/latest.json` |
-| AI 服务商预设清单 | `https://git-notes.u32.cn/data/mode_providers.json` | 三端各一处常量（web/server.js、electron/backend/api.js、android LocalServer.kt） |
-| web 版预设代理 | 同上（服务端代理，前端不直连） | `web/server.js`（AI_PROVIDERS_URL） |
-| 官网首页取数 | `/data/latest.yml` + `/data/latest.json` | `homepage/index.html`（META_BASE） |
-
-每次发版的固定步骤：
-
-1. 改版本号（`web/package.json` / `electron/package.json` / android versionName 继承）→ 构建 exe 与 apk
-2. 在版本号提交上打 annotated tag 并推送（见上方发布纪律）
-3. **更新两个清单文件**：`homepage/data/latest.yml`（version / files[0].url / sha512 / size，对齐 exe 实测值）与 `homepage/data/latest.json`（version / url 绝对地址指向 `git-notes.u32.cn/download/<apk 文件名>` / sha512），随代码一起 push
-4. 创建 GitHub Release（tag 复用已打的）并上传 4 个资产：exe、apk、`latest.yml`、`latest.json`（Release 里的清单是给 `releases/latest/download/` 直连兜底用的，内容与 `homepage/data/` 保持一致）
-5. 验证：`git-notes.u32.cn/data/latest.yml`、`.../latest.json` 返回 200 且版本正确；`git-notes.u32.cn/download/<exe>`、`<apk>` 可下载；官网首页两个平台版本号都显示正常
-6. 若 EdgeOne 缓存导致官网/清单内容滞后，刷新对应 URL 的缓存（purge 任务）
-
-注意事项：
-- **元数据只走 Pages 源（/data/），安装包只走 Releases 源（/download/）**。不要把 latest.yml/json 再挂回 /download/ 路径——EdgeOne 回源 Releases 不稳定（实测约 30% 超时），元数据必须走稳定的 Pages 源
-- 官网取数代码不带 `?t=` 防缓存参数（会绕过 EdgeOne 缓存强制回源，暴露失败率）
-- 仓库内禁止提交 `.workbuddy/` 目录（已在 .gitignore）
+发布渠道、服务地址与固定发版步骤等具体信息**以 [README.md](README.md) 为准，不在本文件重复**。AI 执行发版时的额外注意：构建产物（exe/apk/清单）先在本地验证再上传；上传公开仓库与 Releases 前必须做隐私扫描（密钥/个人信息零容忍）。
