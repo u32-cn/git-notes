@@ -530,7 +530,7 @@ class LocalServer(private val context: Context) {
             .put("sync", sync)
     }
 
-    // 检测新版本：拉更新源 download/latest.json 与 BuildConfig.VERSION_NAME 比对（8s 超时；失败装 error 不抛，前端展示）
+    // 检测新版本：拉更新源 data/latest.json（Pages 源，稳定）与 BuildConfig.VERSION_NAME 比对（8s 超时；失败装 error 不抛，前端展示）
     // 语义化比较：latest 逐段数值大于 current 才算有新版（更新源过期/回滚时不得误报）
     private fun isNewerVersion(latest: String, current: String): Boolean {
         val a = latest.split('.').map { it.toIntOrNull() ?: 0 }
@@ -662,7 +662,7 @@ class LocalServer(private val context: Context) {
     private fun checkUpdate(): JSONObject {
         val cur = BuildConfig.VERSION_NAME
         return try {
-            val conn = URL("https://git-notes.u32.cn/download/latest.json").openConnection() as HttpURLConnection
+            val conn = URL("https://git-notes.u32.cn/data/latest.json").openConnection() as HttpURLConnection
             conn.connectTimeout = 8000
             conn.readTimeout = 8000
             val manifest = JSONObject(conn.inputStream.bufferedReader().readText())

@@ -63,7 +63,7 @@ npm install -g @u32/git-notes@latest   # 依赖：Node ≥ 18、系统 PATH 有 
 
 ### Windows 桌面版（AI 代办，默认路径）
 
-1. 拉更新源 `https://git-notes.u32.cn/download/latest.yml`，取最新版 exe 的下载地址与版本号
+1. 拉更新源 `https://git-notes.u32.cn/data/latest.yml`，取最新版 exe 的下载地址与版本号（安装包在 `https://git-notes.u32.cn/download/`）
 2. 下载 `git-notes-<版本>-setup.exe` 到临时目录（**不要放进任何 git 仓库**）
 3. 静默安装：`git-notes-<版本>-setup.exe /S`（NSIS 静默参数），装完运行 `git-notes -v` 或启动应用验证
 4. 第 1/2/3 步失败（下载失败、静默参数不被识别等）才退回手动指导：让用户从官网 <https://git-notes.u32.cn/> 下载安装包双击安装

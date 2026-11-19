@@ -2708,12 +2708,11 @@ var qrcode = function() {
 (function () {
   var WIN_BASE = 'https://git-notes.u32.cn/download/';
   var AND_BASE = 'https://git-notes.u32.cn/download/';
+  /* 元数据走 /data/（GitHub Pages 回源，稳定）；安装包走 /download/（Releases 回源 + 边缘缓存） */
+  var META_BASE = 'https://git-notes.u32.cn/data/';
   var statusEl = document.querySelector('[data-dl-status]');
   var state = { win: null, android: null }, inFlight = false;
-  /* 本地预览经 u32-local-server 的 CORS 代理取更新源；线上按发布域名直接取 */
-  /* 更新源跨域：本地 http 预览走 u32-local-server 的 /proxy/；
-     直接双击打开（file://，origin 为 null，OSS 拒绝跨域）时借用同一个本地代理；
-     线上按发布域名直接取 */
+  /* 本地预览经 u32-local-server 的 CORS 代理取更新源；线上同域直接取 */
   var isFile = location.protocol === 'file:';
   var isLocal = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
   function metaUrl(url) {
@@ -2724,7 +2723,7 @@ var qrcode = function() {
   function get(url, json) {
     var ctrl = new AbortController();
     var timer = setTimeout(function () { ctrl.abort(); }, 8000);
-    return fetch(url + '?t=' + Date.now(), { cache: 'no-store', signal: ctrl.signal })
+    return fetch(url, { cache: 'no-store', signal: ctrl.signal })
       .then(function (res) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         return json ? res.json() : res.text();
@@ -2821,8 +2820,8 @@ var qrcode = function() {
     var verEl = document.querySelector('[data-u32-name="qr-ver"]');
     if (verEl) verEl.textContent = '正在获取最新版本…';
     var tasks = [
-      get(metaUrl(WIN_BASE + 'latest.yml'), false).then(parseWin).then(function (d) { apply('win', d); }).catch(function () { state.win = null; }),
-      get(metaUrl(AND_BASE + 'latest.json'), true).then(parseAndroid).then(function (d) { apply('android', d); }).catch(function () { state.android = null; qrFail(); })
+      get(metaUrl(META_BASE + 'latest.yml'), false).then(parseWin).then(function (d) { apply('win', d); }).catch(function () { state.win = null; }),
+      get(metaUrl(META_BASE + 'latest.json'), true).then(parseAndroid).then(function (d) { apply('android', d); }).catch(function () { state.android = null; qrFail(); })
     ];
     Promise.all(tasks).then(function () { inFlight = false; renderStatus(); });
   }
