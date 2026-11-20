@@ -1,8 +1,8 @@
-version: 1.1.0
+version: 1.2.0
 files:
-  - url: git-notes-1.1.0-setup.exe
-    sha512: u1v+N+FRCDR9cE3k3JJHJ/yylAzmvdHpcUBeTq8Ur9DBj8Qd57NDFCLBVDs4Axm1u6JpmR65mXqd6OcGlIsMjA==
-    size: 83774273
-path: git-notes-1.1.0-setup.exe
-sha512: u1v+N+FRCDR9cE3k3JJHJ/yylAzmvdHpcUBeTq8Ur9DBj8Qd57NDFCLBVDs4Axm1u6JpmR65mXqd6OcGlIsMjA==
-releaseDate: '2026-11-19T06:23:29.000Z'
+  - url: git-notes-1.2.0-setup.exe
+    sha512: nCiFs2sG8T9YqYASVFhZABTCsjWdy86tdG95sZaBxUkc3M93nW5eOQIdo3rik6l2Sp2uXx9QeqU3lTacvkS+nA==
+    size: 83774539
+path: git-notes-1.2.0-setup.exe
+sha512: nCiFs2sG8T9YqYASVFhZABTCsjWdy86tdG95sZaBxUkc3M93nW5eOQIdo3rik6l2Sp2uXx9QeqU3lTacvkS+nA==
+releaseDate: '2026-11-20T01:34:22.019Z'
