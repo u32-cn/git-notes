@@ -563,6 +563,17 @@ class LocalServer(private val context: Context) {
     private fun apkSha512(file: File): String =
         MessageDigest.getInstance("SHA-512").digest(file.readBytes()).joinToString("") { "%02x".format(it) }
 
+    // 启动后台自动更新（与 electron 端对齐）：延迟 delayMs 后静默走 检测→下载→ready 即止，
+    // 不弹任何窗；有新版时前端轮询 /update/progress 把按钮切成「✔ 点击安装」。
+    // installUpdate 自带在途守卫（updBusy），与用户手动点击互斥，重复触发只会 already=true。
+    fun scheduleAutoUpdate(delayMs: Long) {
+        Thread {
+            try { Thread.sleep(delayMs) } catch (_: InterruptedException) { return@Thread }
+            runCatching { installUpdate() }
+        }.start()
+    }
+
+
     private fun installUpdate(): JSONObject {
         synchronized(updLock) {
             if (updBusy) return JSONObject().put("ok", true).put("already", true)

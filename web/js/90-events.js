@@ -344,11 +344,12 @@ function bootUpdateCheck() {
     try { localStorage.setItem('gnUpdateCheckAt', String(Date.now())); } catch (_) {}
     if (j.supported && j.updateAvailable) {
       showUpdateBtn(j.latest);
-      /* 应用重启后桌面端进度已复位（安装包可能仍在 update 目录待装，startup 检测会落 ready）：
-         挂一次轮询，及时把胶囊切到「✔ 点击安装」。android 后端无启动自动检测，不挂 */
-      if (location.protocol === 'gnapp:' && !updWatchOn) {
-        updWatchOn = true;
-        updWatchPoll();
+      /* 自动下载：检测到新版即触发后台下载（不弹框、到 ready 即止）。
+         electron/android 后端启动 15s 均已自动跑同一条 检测→下载 流程，重复 POST 有在途守卫只返回 already。
+         触发后挂轮询，把按钮状态推进 ⬇ xx% → ✔ 点击安装 */
+      if (location.protocol === 'gnapp:' || state.platform === 'android') {
+        api('POST', '/update/install').catch(function () {});
+        if (!updWatchOn) { updWatchOn = true; updWatchPoll(); }
       }
     }
   }).catch(function () { /* 静默：网络失败不打扰 */ });
