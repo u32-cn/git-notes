@@ -44,6 +44,24 @@
 
 更多介绍见[帮助文档](docs/help.md)。
 
+## 与 Memos 的区别
+
+[usememos/memos](https://github.com/usememos/memos) 也是开源自托管的时间线微笔记，但两者的定位不同：**Memos 是跑在服务器上的多用户应用，数据存在服务端；git-notes 是本地优先的 git 仓库，数据就是 md 文件。**
+
+| 维度 | git-notes | Memos |
+|---|---|---|
+| 运行形态 | 本地服务（`127.0.0.1:8644`）+ 三端应用，只需 Node 与 git | 服务端部署（Docker / Compose / K8s / 二进制），浏览器访问 |
+| 数据形态 | `micro/YYYY/MM/*.md` + git 提交历史，任何编辑器可直接读 | 服务端数据库与附件存储，备份整个 `~/.memos` 目录 |
+| 多端同步 | 自己绑定 git 远端，fetch + rebase/merge + push，冲突需处理 | 所有客户端连同一个服务端，无同步冲突 |
+| 用户与分享 | 单人使用，服务不对外暴露，不提供公开发布 | 多账号、共享空间，可控制每条笔记的可见性并发布到公网 |
+| 历史版本 | 每次操作一个 commit，可查看/恢复任意版本 | 由服务端保存，备份与恢复按官方流程操作 |
+| 扩展与 AI | 内置 AI 助手直接读写本地文件，CLI + skill + `llms.txt` | REST / gRPC API、MCP server、Webhook、浏览器剪藏插件 |
+| 场景侧重 | 纯文本、离线可用、数据搬家零锁定 | 团队/家人共用、公网访问、现成生态 |
+
+**选择**：要多人共享或对外发布 → Memos；要纯文本、git 历史、AI 直接改本地文件 → git-notes。
+
+> 对比依据：Memos [README](https://github.com/usememos/memos) 与[官方文档](https://usememos.com/docs)，核对于 2026-11-24。
+
 ## 使用
 
 ```bash
