@@ -318,7 +318,7 @@ function postCardHtml(p, isPinned) {
   var h = '<article class="post' + (isPinned ? ' pinned' : '') + (p.path === justAddedPath ? ' post-in' : '') + '" data-path="' + esc(p.path) + '" data-u32-name="post">'
     + '<div class="post-rail" data-u32-name="post-rail"><span class="post-node" data-u32-name="post-node"></span></div>'
     + '<div class="post-main" data-u32-name="post-main">'
-    + '<div class="post-head" data-u32-name="post-head"><span class="ptime" title="' + esc(postTimeFull(p)) + '">' + esc(postTime(p)) + '</span>';
+    + '<div class="post-head" data-u32-name="post-head"><span class="ptime ptime-copy" data-u32-name="ptime-copy" title="' + esc(postId(p)) + '（点击复制 ID）">' + esc(postTime(p)) + '</span>';
     /* 标签紧跟时间靠左；动作按钮推最右 */
     if (p.tags.length) {
       var isTodo = p.tags.indexOf(TODO_TAG) > -1 || p.tags.indexOf(DONE_TODO) > -1;

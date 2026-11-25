@@ -172,6 +172,7 @@ function postHasTerm(post) {
 /* ================= 编辑 ================= */
 function postByPath(p) {
   for (var i = 0; i < state.items.length; i++) if (state.items[i].path === p) return state.items[i];
+  for (var j = 0; j < (state.pinPosts || []).length; j++) if (state.pinPosts[j].path === p) return state.pinPosts[j];
   return null;
 }
 function startEdit(path) {

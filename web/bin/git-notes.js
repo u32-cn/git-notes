@@ -10,8 +10,12 @@
  *
  * 笔记操作子命令（转发到本机服务的 /api，业务逻辑单一事实源在 server.js）：
  * git-notes list [--limit N] [--tag 标签] [--json]      列出笔记（新→旧）
- * git-notes add "<正文>" [--tag a,b] [--json]           新增笔记
- * git-notes edit <id> "<正文>" [--tag a,b] [--json]     编辑笔记（不改标签时保留原标签）
+ * git-notes add "<正文>" [--tag a,b] [--image 文件]... [--file 文件]... [--json]
+ *                                                      新增笔记（可附图片/附件）
+ * git-notes edit <id> ["<新正文>"] [--tag a,b] [--image 文件]... [--file 文件]...
+ *        [--rm-image 磁盘名]... [--rm-file 名字]... [--json]
+ *                                                      编辑笔记（不改标签时保留原标签；
+ *                                                      可只改图片/附件不动正文）
  * git-notes rm <id> [--yes]                             删除笔记
  * git-notes pin <id> [--off]                            钉住 / 取消钉住
  * git-notes show <id>                                   查看笔记原文（Markdown）
@@ -258,6 +262,10 @@ function parseArgs(rest) {
     else if (a === '--stat') opt.stat = true;
     else if (a === '--staged') opt.staged = true;
     else if (a === '--local') opt.local = true;
+    else if (a === '--image') (opt.image = opt.image || []).push(String(rest[++i] || ''));
+    else if (a === '--file') (opt.file = opt.file || []).push(String(rest[++i] || ''));
+    else if (a === '--rm-image') (opt.rmImage = opt.rmImage || []).push(String(rest[++i] || ''));
+    else if (a === '--rm-file') (opt.rmFile = opt.rmFile || []).push(String(rest[++i] || ''));
     else pos.push(a);
   }
   return { pos, opt };
@@ -305,6 +313,38 @@ function splitTags(optTag) {
 
 function printJson(v) { console.log(JSON.stringify(v, null, 2)); }
 
+/* ===== 图片/附件（与 server.js 的 IMG_MIME/校验/上限保持一致）===== */
+const IMG_EXT = { png: 1, jpg: 1, jpeg: 1, gif: 1, webp: 1, bmp: 1, avif: 1 };
+const MAX_ATTACH = 9;                  /* 图片/附件各最多 9 个，同 server.js MAX_IMAGES/MAX_FILES */
+const MAX_B64_LEN = 14 * 1024 * 1024;  /* base64 长度上限，同 server.js validImages/validFiles */
+
+function die(msg) { throw new Error(msg); }
+
+/* 本地文件 → { ext, base64 }（图片）或 { name, ext, base64 }（附件），校验失败直接报错 */
+function readAttachment(p, isImage) {
+  const file = String(p || '');
+  const ext = path.extname(file).slice(1).toLowerCase();
+  if (isImage && !IMG_EXT[ext]) die('图片仅支持 png/jpg/jpeg/gif/webp/bmp/avif：' + file);
+  if (!isImage && !/^[a-z0-9]{1,12}$/.test(ext)) die('附件扩展名须为 1-12 位字母数字：' + file);
+  let buf;
+  try { buf = fs.readFileSync(file); } catch (_) { die('文件不存在或不可读：' + file); }
+  const b64 = buf.toString('base64');
+  if (b64.length > MAX_B64_LEN) die('文件超过 10MB：' + file);
+  return isImage ? { ext, base64: b64 } : { name: path.basename(file), ext, base64: b64 };
+}
+
+/* 收集 add 的图片/附件；未提供时返回 {}（不往请求体塞 undefined 字段，行为与旧版一致） */
+function collectAttachments(opt) {
+  const images = (opt.image || []).map((p) => readAttachment(p, true));
+  const files = (opt.file || []).map((p) => readAttachment(p, false));
+  if (images.length > MAX_ATTACH) die('最多 ' + MAX_ATTACH + ' 张图');
+  if (files.length > MAX_ATTACH) die('最多 ' + MAX_ATTACH + ' 个附件');
+  const out = {};
+  if (images.length) out.images = images;
+  if (files.length) out.files = files;
+  return out;
+}
+
 async function cmdList(rest) {
   const { opt } = parseArgs(rest);
   const posts = await fetchAllPosts(opt.limit || 20);
@@ -317,20 +357,54 @@ async function cmdList(rest) {
 async function cmdAdd(rest) {
   const { pos, opt } = parseArgs(rest);
   const text = pos.join(' ');
-  if (!text) throw new Error('用法：git-notes add "<正文>" [--tag a,b]');
-  const out = await api('POST', '/api/posts', { text, tags: splitTags(opt.tag) || [], ai: true });
+  if (!text && !opt.image && !opt.file) throw new Error('用法：git-notes add "<正文>" [--tag a,b] [--image 文件] [--file 文件]');
+  const attach = collectAttachments(opt);
+  const out = await api('POST', '/api/posts', Object.assign({ text, tags: splitTags(opt.tag) || [], ai: true }, attach));
   if (opt.json) return printJson(out);
   console.log('已添加：' + out.path);
+}
+
+/* edit 的图片/附件处理：计算 keepNames / keepFileNames / newImages / newFiles */
+function editAttachments(opt, cur) {
+  const rmI = (opt.rmImage && opt.rmImage.length) || 0;
+  const rmF = (opt.rmFile && opt.rmFile.length) || 0;
+  const addI = (opt.image && opt.image.length) || 0;
+  const addF = (opt.file && opt.file.length) || 0;
+  if (!rmI && !rmF && !addI && !addF) return {};   /* 未涉及附件：不传任何字段，保持默认保留语义 */
+  const out = {};
+  if (addI) out.newImages = opt.image.map((p) => readAttachment(p, true));
+  if (addF) out.newFiles = opt.file.map((p) => readAttachment(p, false));
+  if (rmI || rmF) {
+    /* 有删除动作时必须显式传 keep*（服务端不传则默认全保留）；删除项匹配不到直接报错防手滑 */
+    const rmImgs = opt.rmImage || [];
+    const rmFiles = opt.rmFile || [];
+    for (const nm of rmImgs) {
+      if (cur.images.indexOf(nm) === -1) die('图片不存在于该笔记：' + nm + '（现有：' + (cur.images.join(', ') || '无') + '）');
+    }
+    for (const nm of rmFiles) {
+      if (!cur.files.some((f) => f.name === nm || f.path === nm))
+        die('附件不存在于该笔记：' + nm + '（现有：' + (cur.files.map((f) => f.name).join(', ') || '无') + '）');
+    }
+    out.keepNames = cur.images.filter((nm) => rmImgs.indexOf(nm) === -1);
+    out.keepFileNames = cur.files.filter((f) => rmFiles.indexOf(f.name) === -1 && rmFiles.indexOf(f.path) === -1).map((f) => f.path);
+  }
+  return out;
 }
 
 async function cmdEdit(rest) {
   const { pos, opt } = parseArgs(rest);
   const rel = await resolveId(pos.shift());
   const text = pos.join(' ');
-  if (!text) throw new Error('用法：git-notes edit <id> "<新正文>" [--tag a,b]');
+  const touchAttach = (opt.image && opt.image.length) || (opt.file && opt.file.length)
+    || (opt.rmImage && opt.rmImage.length) || (opt.rmFile && opt.rmFile.length);
+  if (!text && !touchAttach) throw new Error('用法：git-notes edit <id> "<新正文>" [--tag a,b] [--image 文件] [--file 文件] [--rm-image 名] [--rm-file 名]');
   const cur = (await fetchAllPosts(0)).find((p) => p.path === rel);
   if (!cur) throw new Error('笔记当前不可见：' + rel);
-  const out = await api('PUT', '/api/posts', { path: rel, text, tags: splitTags(opt.tag) !== undefined ? splitTags(opt.tag) : cur.tags, ai: true });
+  const body = Object.assign(
+    { path: rel, text: text || cur.text, tags: splitTags(opt.tag) !== undefined ? splitTags(opt.tag) : cur.tags, ai: true },
+    editAttachments(opt, cur)
+  );
+  const out = await api('PUT', '/api/posts', body);
   if (opt.json) return printJson(out);
   console.log('已更新：' + out.path);
 }
@@ -661,8 +735,11 @@ const rest = process.argv.slice(3);
       '',
       '笔记操作（供人/AI 工具使用，写操作提交信息带 [ai] 标记）：',
       '  git-notes list [--limit N] [--tag 标签] [--json]   列出笔记（新→旧）',
-      '  git-notes add "<正文>" [--tag a,b] [--json]        新增笔记',
-      '  git-notes edit <id> "<新正文>" [--tag a,b]         编辑（不指定 --tag 保留原标签）',
+      '  git-notes add "<正文>" [--tag a,b] [--image 文件]... [--file 文件]... [--json]',
+      '                                                     新增笔记（可附图片/附件）',
+      '  git-notes edit <id> ["<新正文>"] [--tag a,b] [--image 文件]... [--file 文件]...',
+      '        [--rm-image 名]... [--rm-file 名]... [--json]  编辑（不指定 --tag 保留原标签；',
+      '                                                     可只改图片/附件不动正文）',
       '  git-notes rm <id> [--yes]                          删除笔记',
       '  git-notes pin <id> [--off]                         钉住 / 取消钉住',
       '  git-notes show <id>                                查看笔记原文',

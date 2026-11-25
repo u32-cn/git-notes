@@ -59,6 +59,12 @@ function handleApiError(e) {
 }
 
 function pad2(n) { return String(n).padStart(2, '0'); }
+/* 笔记 ID：文件名时间戳（stem），可直接作为 CLI rm/show/edit 的 id 参数（悬停 title / 点击复制用） */
+function postId(p) {
+  var s = p.stem || p.created || '';
+  var m = /^(\d{8}-\d{6})/.exec(s);
+  return m ? m[1] : s;
+}
 function postTimeFull(p) {
   var s = p.created || (p.stem || '');
   var m = /^(\d{4})(\d{2})(\d{2})[- ]?(\d{2})(\d{2})/.exec(s);

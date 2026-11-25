@@ -50,6 +50,19 @@ $('#feed').addEventListener('click', function (ev) {
     foldBtn.textContent = nowFolded ? '展开 ▾' : '收起 ▴';
     return;
   }
+  var ptime = t.closest('.ptime-copy');
+  if (ptime) {
+    var card0 = ptime.closest('.post');
+    var pid = card0 ? postId(postByPath(card0.getAttribute('data-path')) || {}) : '';
+    if (!pid) return;
+    if (!(navigator.clipboard && navigator.clipboard.writeText)) { toast('当前环境不支持复制', 'err'); return; }
+    navigator.clipboard.writeText(pid).then(function () {
+      toast('已复制 ' + pid, 'ok');
+    }, function () {
+      toast('复制失败', 'err');
+    });
+    return;
+  }
   var editBtn = t.closest('.act-edit');
   if (editBtn) {
     var card = editBtn.closest('.post');
